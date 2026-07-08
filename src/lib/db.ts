@@ -11,6 +11,18 @@ export const db = createClient({
 
 let schemaReady: Promise<void> | null = null
 
+// SQLite has no "ADD COLUMN IF NOT EXISTS" - swallow the duplicate-column error
+// so this migration is safe to run against both fresh and already-migrated DBs.
+async function addColumnIfMissing(column: string, ddl: string): Promise<void> {
+  try {
+    await db.execute(ddl)
+  } catch (err) {
+    if (!(err instanceof Error) || !/duplicate column name/i.test(err.message)) {
+      throw new Error(`Failed to add column "${column}"`, { cause: err })
+    }
+  }
+}
+
 export function ensureSchema(): Promise<void> {
   if (!schemaReady) {
     schemaReady = db
@@ -27,6 +39,12 @@ export function ensureSchema(): Promise<void> {
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `,
+      )
+      .then(() =>
+        Promise.all([
+          addColumnIfMissing('lat', 'ALTER TABLE places ADD COLUMN lat REAL'),
+          addColumnIfMissing('lng', 'ALTER TABLE places ADD COLUMN lng REAL'),
+        ]),
       )
       .then(() => undefined)
   }

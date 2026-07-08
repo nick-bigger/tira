@@ -28,6 +28,18 @@ export function mockCoordinate(placeId: string): LatLng {
   }
 }
 
+/** Real coordinate from search when a place has one, else the mock fallback. */
+export function coordinateFor(place: {
+  id: string
+  lat: number | null
+  lng: number | null
+}): LatLng {
+  if (place.lat !== null && place.lng !== null) {
+    return { lat: place.lat, lng: place.lng }
+  }
+  return mockCoordinate(place.id)
+}
+
 const EARTH_RADIUS_MI = 3958.8
 
 export function haversineDistanceMi(a: LatLng, b: LatLng): number {
@@ -40,6 +52,9 @@ export function haversineDistanceMi(a: LatLng, b: LatLng): number {
   return 2 * EARTH_RADIUS_MI * Math.asin(Math.sqrt(h))
 }
 
-export function placeDistanceMi(placeId: string, from: LatLng): number {
-  return haversineDistanceMi(from, mockCoordinate(placeId))
+export function placeDistanceMi(
+  place: { id: string; lat: number | null; lng: number | null },
+  from: LatLng,
+): number {
+  return haversineDistanceMi(from, coordinateFor(place))
 }
