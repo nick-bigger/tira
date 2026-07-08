@@ -26,6 +26,12 @@ export function PlaceListView({ places }: PlaceListViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const ranks = useMemo(() => {
+    const map = new Map<string, number>()
+    places.forEach((place, i) => map.set(place.id, i + 1))
+    return map
+  }, [places])
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return places
@@ -53,7 +59,7 @@ export function PlaceListView({ places }: PlaceListViewProps) {
         </p>
       ) : (
         <div className="flex flex-col gap-2.5">
-          {filtered.map((place, i) => (
+          {filtered.map((place) => (
             <Link
               key={place.id}
               to="/place/$id"
@@ -66,7 +72,7 @@ export function PlaceListView({ places }: PlaceListViewProps) {
                 {place.score.toFixed(1)}
               </span>
               <p className="truncate font-extrabold">
-                {i + 1}. {place.name}
+                {ranks.get(place.id)}. {place.name}
               </p>
               {place.location && (
                 <p className="mt-1 flex items-center gap-1 truncate text-xs font-bold opacity-60">
