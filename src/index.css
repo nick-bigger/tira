@@ -1,111 +1,154 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+/* Tira is a single committed light theme - never toggled - so `dark:` utilities
+   baked into shadcn's components must only fire behind an explicit `.dark` class
+   (which we never add), not the OS `prefers-color-scheme` media query. */
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-sans: 'Nunito', sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-tier-liked: var(--tier-liked);
+  --color-tier-liked-foreground: var(--tier-liked-foreground);
+  --color-tier-okay: var(--tier-okay);
+  --color-tier-okay-foreground: var(--tier-okay-foreground);
+  --color-tier-nope: var(--tier-nope);
+  --color-tier-nope-foreground: var(--tier-nope-foreground);
+
+  --radius-sm: calc(var(--radius) - 0.15rem);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 0.2rem);
+  --radius-xl: calc(var(--radius) + 0.4rem);
+}
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --background: #f7eedd;
+  --foreground: #2b1810;
+  --card: #f7eedd;
+  --card-foreground: #2b1810;
+  --popover: #f7eedd;
+  --popover-foreground: #2b1810;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  --primary: #6f4e37;
+  --primary-foreground: #f7eedd;
+  --secondary: #c79a6a;
+  --secondary-foreground: #2b1810;
+  --muted: #eddfc0;
+  --muted-foreground: #6b5643;
+  --accent: #a65a34;
+  --accent-foreground: #f7eedd;
+  --destructive: #a8442e;
+  --destructive-foreground: #f7eedd;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --border: #2b1810;
+  --input: #2b1810;
+  --ring: #a65a34;
+  --radius: 0.5rem;
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
-}
+  --tier-liked: #c79a3e;
+  --tier-liked-foreground: #2b1810;
+  --tier-okay: #b98b5e;
+  --tier-okay-foreground: #2b1810;
+  --tier-nope: #8b7355;
+  --tier-nope-foreground: #f7eedd;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+  color-scheme: light;
 }
 
 body {
-  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+.font-display {
+  font-family: var(--font-display);
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
+.eyebrow {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* neobrutalist hard shadow + border utilities */
+.brutal {
+  border: 3px solid var(--border);
+  box-shadow: 6px 6px 0px var(--border);
+  border-radius: var(--radius-lg);
+}
+.brutal-sm {
+  border: 2.5px solid var(--border);
+  box-shadow: 4px 4px 0px var(--border);
+  border-radius: var(--radius-md);
+}
+.brutal-xs {
+  border: 2px solid var(--border);
+  box-shadow: 3px 3px 0px var(--border);
+  border-radius: var(--radius-sm);
+}
+.brutal-flat {
+  border: 2.5px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+a.brutal,
+button.brutal,
+a.brutal-sm,
+button.brutal-sm,
+a.brutal-xs,
+button.brutal-xs {
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease;
+}
+a.brutal:hover,
+button.brutal:hover {
+  transform: translate(3px, 3px);
+  box-shadow: 3px 3px 0px var(--border);
+}
+a.brutal-sm:hover,
+button.brutal-sm:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px var(--border);
+}
+a.brutal-xs:hover,
+button.brutal-xs:hover {
+  transform: translate(1.5px, 1.5px);
+  box-shadow: 1.5px 1.5px 0px var(--border);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
+  body {
+    @apply bg-background text-foreground;
   }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+  html {
+    @apply font-sans;
+  }
 }
