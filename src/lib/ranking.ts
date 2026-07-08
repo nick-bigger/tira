@@ -15,13 +15,19 @@ export function compareIndex(state: ComparisonState): number | null {
   return Math.floor((state.lo + state.hi) / 2)
 }
 
+export type ComparisonOutcome = 'new' | 'existing' | 'tie'
+
 export function applyComparison(
   state: ComparisonState,
-  newPlaceIsBetter: boolean,
+  outcome: ComparisonOutcome,
 ): ComparisonState {
   const mid = compareIndex(state)
   if (mid === null) return state
-  return newPlaceIsBetter ? { lo: state.lo, hi: mid } : { lo: mid + 1, hi: state.hi }
+  if (outcome === 'new') return { lo: state.lo, hi: mid }
+  if (outcome === 'existing') return { lo: mid + 1, hi: state.hi }
+  // Tie / skip: too close to call, or not worth deciding right now - settle
+  // immediately just after the compared item instead of narrowing further.
+  return { lo: mid + 1, hi: mid + 1 }
 }
 
 export function insertionIndex(state: ComparisonState): number {

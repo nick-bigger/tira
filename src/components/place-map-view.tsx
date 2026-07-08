@@ -1,5 +1,5 @@
 import type { Tier } from '@/components/tier-icon'
-import { mockCoordinate } from '@/lib/geo'
+import { coordinateFor } from '@/lib/geo'
 import type { PlaceWithScore } from '@/lib/places'
 import { useGeolocation } from '@/lib/use-geolocation'
 import L from 'leaflet'
@@ -9,9 +9,9 @@ import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap } from 're
 import { LocateIcon } from './icons'
 
 const TIER_HEX: Record<Tier, { bg: string; fg: string }> = {
-  liked: { bg: '#16a34a', fg: '#f7eedd' },
-  okay: { bg: '#ca8a04', fg: '#2b1810' },
-  nope: { bg: '#dc2626', fg: '#f7eedd' },
+  liked: { bg: '#5c8f5f', fg: '#f7eedd' },
+  okay: { bg: '#c2924a', fg: '#2b1810' },
+  nope: { bg: '#bd5a4d', fg: '#f7eedd' },
 }
 
 function scoreIcon(place: PlaceWithScore): L.DivIcon {
@@ -87,7 +87,7 @@ export interface PlaceMapViewProps {
 }
 
 export function PlaceMapView({ places }: PlaceMapViewProps) {
-  const points = useMemo(() => places.map((p) => mockCoordinate(p.id)), [places])
+  const points = useMemo(() => places.map((p) => coordinateFor(p)), [places])
   const bounds = useMemo<[number, number][]>(() => points.map((p) => [p.lat, p.lng]), [points])
 
   return (
@@ -119,7 +119,8 @@ export function PlaceMapView({ places }: PlaceMapViewProps) {
         </MapContainer>
       </div>
       <p className="mt-2.5 text-center text-xs font-bold opacity-55">
-        Pin locations are mocked for now - not geocoded yet.
+        Pins use real coordinates when a place was added via search or matched to a real address -
+        older places are still mocked until re-saved.
       </p>
     </div>
   )

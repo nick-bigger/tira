@@ -12,6 +12,8 @@ export interface Place {
   tier: Tier
   position: number
   createdAt: string
+  lat: number | null
+  lng: number | null
 }
 
 export interface PlaceWithScore extends Place {
@@ -29,6 +31,8 @@ function rowToPlace(row: Row): Place {
     tier: row.tier as Tier,
     position: Number(row.position),
     createdAt: row.created_at as string,
+    lat: row.lat === null ? null : Number(row.lat),
+    lng: row.lng === null ? null : Number(row.lng),
   }
 }
 
@@ -77,6 +81,8 @@ export interface NewPlaceInput {
   visitedDate: string
   tier: Tier
   insertionIndex: number
+  lat?: number
+  lng?: number
 }
 
 export async function createPlace(input: NewPlaceInput): Promise<string> {
@@ -89,7 +95,7 @@ export async function createPlace(input: NewPlaceInput): Promise<string> {
         args: [input.tier, input.insertionIndex],
       },
       {
-        sql: 'INSERT INTO places (id, name, location, notes, visited_date, tier, position) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        sql: 'INSERT INTO places (id, name, location, notes, visited_date, tier, position, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         args: [
           id,
           input.name,
@@ -98,6 +104,8 @@ export async function createPlace(input: NewPlaceInput): Promise<string> {
           input.visitedDate || null,
           input.tier,
           input.insertionIndex,
+          input.lat ?? null,
+          input.lng ?? null,
         ],
       },
     ],

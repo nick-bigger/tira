@@ -1,6 +1,6 @@
 commands:
-  lint: "npm run lint"
-  format: "npm run format"
+  lint: 'npm run lint'
+  format: 'npm run format'
 
 ignore_patterns:
-  - "src/routeTree.gen.ts"
+  - 'src/routeTree.gen.ts'

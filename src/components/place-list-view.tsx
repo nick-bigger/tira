@@ -82,7 +82,7 @@ export function PlaceListView({ places }: PlaceListViewProps) {
               )}
               {position && (
                 <span className="absolute bottom-[0.65rem] left-4 text-[11px] font-bold text-muted-foreground">
-                  {placeDistanceMi(place.id, position).toFixed(1)} mi
+                  {placeDistanceMi(place, position).toFixed(1)} mi
                 </span>
               )}
             </Link>
