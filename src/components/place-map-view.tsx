@@ -119,8 +119,8 @@ export function PlaceMapView({ places }: PlaceMapViewProps) {
         </MapContainer>
       </div>
       <p className="mt-2.5 text-center text-xs font-bold opacity-55">
-        Pins use real coordinates when a place was added via search - older places are still mocked
-        until re-saved.
+        Pins use real coordinates when a place was added via search or matched to a real address -
+        older places are still mocked until re-saved.
       </p>
     </div>
   )

@@ -1,15 +1,12 @@
 import type { LatLng } from '@/lib/geo'
 import { useEffect, useState } from 'react'
 
-export type PlaceCategory = 'restaurant' | 'cafe' | 'bakery' | 'grocery' | 'other'
-
 export interface PlaceSearchResult {
   id: string
   name: string
   location: string
   lat: number
   lng: number
-  category: PlaceCategory
 }
 
 export interface LocationSuggestion {
@@ -34,22 +31,10 @@ interface NominatimResult {
   lon: string
   display_name: string
   name?: string
-  class: string
-  type: string
   address?: NominatimAddress
 }
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search'
-const RESTAURANT_TYPES = new Set(['restaurant', 'fast_food', 'food_court', 'bar', 'pub'])
-const GROCERY_TYPES = new Set(['supermarket', 'convenience', 'department_store', 'wholesale'])
-
-function categoryFor(cls: string, type: string): PlaceCategory {
-  if (cls === 'amenity' && RESTAURANT_TYPES.has(type)) return 'restaurant'
-  if (cls === 'amenity' && type === 'cafe') return 'cafe'
-  if (cls === 'shop' && type === 'bakery') return 'bakery'
-  if (cls === 'shop' && GROCERY_TYPES.has(type)) return 'grocery'
-  return 'other'
-}
 
 function cityStateOf(r: NominatimResult): string | null {
   const city = r.address?.city ?? r.address?.town ?? r.address?.village ?? r.address?.hamlet
@@ -116,7 +101,6 @@ export async function searchPlaces(
     location: locationFor(r),
     lat: Number(r.lat),
     lng: Number(r.lon),
-    category: categoryFor(r.class, r.type),
   }))
 }
 

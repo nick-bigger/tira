@@ -4,7 +4,13 @@ import { PinIcon } from '@/components/pin-icon'
 import { TIER_LABEL, TierIcon, type Tier } from '@/components/tier-icon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Sheet, SheetClose, SheetContent, SheetTitle } from '@/components/ui/sheet'
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { haversineDistanceMi, type LatLng } from '@/lib/geo'
 import {
   useDebouncedAddressSearch,
@@ -65,6 +71,7 @@ export function AddPlaceOverlay({ open, onOpenChange, byTier, onSaved }: AddPlac
   const [saving, setSaving] = useState(false)
   const [savedInfo, setSavedInfo] = useState<SavedInfo | null>(null)
   const [locationOverride, setLocationOverride] = useState<LocationSuggestion | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const searchNear = locationOverride
     ? { lat: locationOverride.lat, lng: locationOverride.lng }
@@ -98,6 +105,7 @@ export function AddPlaceOverlay({ open, onOpenChange, byTier, onSaved }: AddPlac
       setSaving(false)
       setSavedInfo(null)
       setLocationOverride(null)
+      setSaveError(null)
     }, 250)
     return () => clearTimeout(t)
   }, [open])
@@ -131,25 +139,31 @@ export function AddPlaceOverlay({ open, onOpenChange, byTier, onSaved }: AddPlac
   async function saveWithIndex(chosenTier: Tier, index: number) {
     if (!candidate) return
     setSaving(true)
-    await createPlace({
-      name: candidate.name,
-      location: candidate.location,
-      notes: '',
-      visitedDate: '',
-      tier: chosenTier,
-      insertionIndex: index,
-      lat: candidate.lat,
-      lng: candidate.lng,
-    })
-    const tierCount = byTier[chosenTier].length + 1
-    setSavedInfo({
-      tier: chosenTier,
-      rank: index + 1,
-      score: scoreFor(chosenTier, index, tierCount),
-    })
-    setSaving(false)
-    setStep('saved')
-    await onSaved()
+    setSaveError(null)
+    try {
+      await createPlace({
+        name: candidate.name,
+        location: candidate.location,
+        notes: '',
+        visitedDate: '',
+        tier: chosenTier,
+        insertionIndex: index,
+        lat: candidate.lat,
+        lng: candidate.lng,
+      })
+      const tierCount = byTier[chosenTier].length + 1
+      setSavedInfo({
+        tier: chosenTier,
+        rank: index + 1,
+        score: scoreFor(chosenTier, index, tierCount),
+      })
+      setStep('saved')
+      await onSaved()
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save - try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   function handleTierPick(chosenTier: Tier) {
@@ -240,6 +254,7 @@ export function AddPlaceOverlay({ open, onOpenChange, byTier, onSaved }: AddPlac
             onChange={resetToSearch}
             onClose={handleClose}
             disabled={saving}
+            error={saveError}
           />
         )}
         {step === 'compare' && candidate && tier && compareState && (
@@ -255,6 +270,7 @@ export function AddPlaceOverlay({ open, onOpenChange, byTier, onSaved }: AddPlac
             onChange={resetToSearch}
             onClose={handleClose}
             disabled={saving}
+            error={saveError}
           />
         )}
         {step === 'saved' && savedInfo && candidate && (
@@ -345,6 +361,9 @@ function SearchStep({
         <SheetTitle>Add a place</SheetTitle>
         <CloseButton onClose={onClose} />
       </div>
+      <SheetDescription className="sr-only">
+        Search for a place to add and rank it against ones you've already tried.
+      </SheetDescription>
       <div className="relative mb-2.5 shrink-0">
         <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 opacity-55" />
         <input
@@ -509,6 +528,9 @@ function ManualStep({
         <SheetTitle>Add manually</SheetTitle>
         <CloseButton onClose={onClose} />
       </div>
+      <SheetDescription className="sr-only">
+        Enter a place's name and location by hand when it can't be found in search.
+      </SheetDescription>
       <form onSubmit={onSubmit} className="flex flex-col gap-3">
         <Field id="manual-name" label="Name">
           <Input
@@ -607,20 +629,23 @@ function TierStep({
   onChange,
   onClose,
   disabled,
+  error,
 }: {
   candidate: Candidate
   onPick: (tier: Tier) => void
   onChange: () => void
   onClose: () => void
   disabled: boolean
+  error: string | null
 }) {
   return (
     <>
       <SelectedPlaceHeader candidate={candidate} onChange={onChange} onClose={onClose} />
       <SheetTitle className="mb-1 text-lg">How was it?</SheetTitle>
-      <p className="mb-4 text-sm font-bold opacity-60">
+      <SheetDescription className="mb-4">
         Pick the group it belongs in - you'll fine-tune the exact rank next.
-      </p>
+      </SheetDescription>
+      {error && <p className="mb-3 text-sm font-bold text-destructive">{error}</p>}
       <div className="flex flex-col gap-3">
         {(['liked', 'okay', 'nope'] as Tier[]).map((t) => (
           <Button
@@ -657,6 +682,7 @@ function CompareStep({
   onChange,
   onClose,
   disabled,
+  error,
 }: {
   candidate: Candidate
   tier: Tier
@@ -669,6 +695,7 @@ function CompareStep({
   onChange: () => void
   onClose: () => void
   disabled: boolean
+  error: string | null
 }) {
   const mid = compareIndex(compareState)
   const against = mid !== null ? existing[mid] : null
@@ -679,10 +706,11 @@ function CompareStep({
   return (
     <>
       <SelectedPlaceHeader candidate={candidate} onChange={onChange} onClose={onClose} />
-      <p className="mb-1 text-center font-display text-xl font-bold">Which do you prefer?</p>
-      <p className="eyebrow mb-5 text-center text-xs opacity-60">
+      <SheetTitle className="mb-1 text-center text-xl">Which do you prefer?</SheetTitle>
+      <SheetDescription className="eyebrow mb-5 text-center text-xs">
         Comparing within {TIER_LABEL[tier]} · round {round} of ~{totalRounds}
-      </p>
+      </SheetDescription>
+      {error && <p className="mb-3 text-center text-sm font-bold text-destructive">{error}</p>}
       <div className="mb-3 flex items-stretch gap-2">
         <button
           type="button"
@@ -753,9 +781,9 @@ function SavedStep({ candidate, info }: { candidate: Candidate; info: SavedInfo 
         <TierIcon tier={info.tier} className="h-6 w-6" />
       </span>
       <SheetTitle className="mb-1">Saved!</SheetTitle>
-      <p className="text-sm font-bold opacity-60">
+      <SheetDescription>
         {candidate.name} · #{info.rank} in {TIER_LABEL[info.tier]} · Score {info.score.toFixed(1)}
-      </p>
+      </SheetDescription>
     </div>
   )
 }
