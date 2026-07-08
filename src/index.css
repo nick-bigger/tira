@@ -68,11 +68,11 @@
   --ring: #a65a34;
   --radius: 0.5rem;
 
-  --tier-liked: #c79a3e;
-  --tier-liked-foreground: #2b1810;
-  --tier-okay: #b98b5e;
+  --tier-liked: #16a34a;
+  --tier-liked-foreground: #f7eedd;
+  --tier-okay: #ca8a04;
   --tier-okay-foreground: #2b1810;
-  --tier-nope: #8b7355;
+  --tier-nope: #dc2626;
   --tier-nope-foreground: #f7eedd;
 
   color-scheme: light;

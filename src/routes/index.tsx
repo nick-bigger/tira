@@ -1,9 +1,12 @@
-import { PinIcon } from '@/components/pin-icon'
-import { TIER_LABEL, TierIcon, type Tier } from '@/components/tier-icon'
+import { ListIcon, MapViewIcon } from '@/components/icons'
+import { PlaceListView } from '@/components/place-list-view'
+import { PlaceMapView } from '@/components/place-map-view'
+import type { Tier } from '@/components/tier-icon'
 import { TiraMark } from '@/components/tira-mark'
 import { Button } from '@/components/ui/button'
-import { listPlacesByTier, type PlaceWithScore } from '@/lib/places'
+import { listPlacesByTier } from '@/lib/places'
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { useState } from 'react'
 
 export const Route = createFileRoute('/')({
   component: RankedListPage,
@@ -12,16 +15,12 @@ export const Route = createFileRoute('/')({
 
 const TIER_ORDER: Tier[] = ['liked', 'okay', 'nope']
 
-const TIER_BG: Record<Tier, string> = {
-  liked: 'bg-tier-liked text-tier-liked-foreground',
-  okay: 'bg-tier-okay text-tier-okay-foreground',
-  nope: 'bg-tier-nope text-tier-nope-foreground',
-}
+type View = 'list' | 'map'
 
 function RankedListPage() {
   const byTier = Route.useLoaderData()
   const allPlaces = TIER_ORDER.flatMap((t) => byTier[t])
-  const topPick = byTier.liked[0] ?? byTier.okay[0] ?? byTier.nope[0]
+  const [view, setView] = useState<View>('list')
 
   return (
     <div className="min-h-svh">
@@ -45,69 +44,40 @@ function RankedListPage() {
           <EmptyState />
         ) : (
           <>
-            <div className="brutal-sm mb-6 flex max-w-sm overflow-hidden bg-secondary sm:mb-10">
-              <div className="flex-1 border-r-[2.5px] border-border px-4 py-3">
-                <div className="eyebrow text-[10px]">Tried</div>
-                <div className="font-display text-lg font-bold">{allPlaces.length}</div>
-              </div>
-              <div className="min-w-0 flex-1 px-4 py-3">
-                <div className="eyebrow text-[10px]">Top pick</div>
-                <div className="truncate font-display text-sm font-bold">
-                  {topPick?.name ?? '—'}
-                </div>
-              </div>
+            <div className="mb-6 inline-flex overflow-hidden rounded-md border-[2.5px] border-border shadow-[4px_4px_0px_var(--border)]">
+              <button
+                type="button"
+                onClick={() => setView('list')}
+                aria-pressed={view === 'list'}
+                className={`flex items-center gap-1.5 px-4 py-2 font-display text-sm font-bold ${
+                  view === 'list' ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground'
+                }`}
+              >
+                <ListIcon className="h-3.5 w-3.5" />
+                List
+              </button>
+              <button
+                type="button"
+                onClick={() => setView('map')}
+                aria-pressed={view === 'map'}
+                className={`flex items-center gap-1.5 border-l-[2.5px] border-border px-4 py-2 font-display text-sm font-bold ${
+                  view === 'map' ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground'
+                }`}
+              >
+                <MapViewIcon className="h-3.5 w-3.5" />
+                Map
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3 lg:gap-8">
-              {TIER_ORDER.map((tier) => (
-                <TierSection key={tier} tier={tier} places={byTier[tier]} />
-              ))}
-            </div>
+            {view === 'list' ? (
+              <PlaceListView places={allPlaces} />
+            ) : (
+              <PlaceMapView places={allPlaces} />
+            )}
           </>
         )}
       </main>
     </div>
-  )
-}
-
-function TierSection({ tier, places }: { tier: Tier; places: PlaceWithScore[] }) {
-  return (
-    <section>
-      <span
-        className={`eyebrow brutal-xs mb-3 inline-flex items-center gap-1.5 px-3 py-1 ${TIER_BG[tier]}`}
-      >
-        <TierIcon tier={tier} className="h-3 w-3" />
-        {TIER_LABEL[tier]}
-      </span>
-      {places.length === 0 ? (
-        <p className="px-1 text-sm font-bold opacity-60">None yet.</p>
-      ) : (
-        <div className="flex flex-col gap-2.5">
-          {places.map((p) => (
-            <Link
-              key={p.id}
-              to="/place/$id"
-              params={{ id: p.id }}
-              className="brutal-sm flex flex-row items-center gap-3 bg-card p-3 text-foreground no-underline"
-            >
-              <span className="w-5 shrink-0 font-display text-lg font-bold">{p.rankInTier}</span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-extrabold">{p.name}</p>
-                {p.location && (
-                  <p className="flex items-center gap-1 truncate text-xs font-bold opacity-60">
-                    <PinIcon className="h-3 w-3 shrink-0" />
-                    {p.location}
-                  </p>
-                )}
-              </div>
-              <span className={`eyebrow brutal-xs shrink-0 px-2 py-1 ${TIER_BG[tier]}`}>
-                {p.score.toFixed(1)}
-              </span>
-            </Link>
-          ))}
-        </div>
-      )}
-    </section>
   )
 }
 
