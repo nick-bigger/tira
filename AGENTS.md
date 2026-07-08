@@ -9,6 +9,7 @@ tier and a derived 0-10 score.
 - Vite + React + TypeScript, TanStack Router (file-based routes in `src/routes/`)
 - Tailwind v4 + shadcn/ui (`src/components/ui/`), theme tokens in `src/index.css`
 - Turso (hosted SQLite) via `@libsql/client/web`, HTTP transport - see `src/lib/db.ts`
+- Leaflet + react-leaflet with OpenStreetMap tiles (no API key) for the homepage map view
 - Deployed to GitHub Pages via `.github/workflows/deploy.yml`
 
 ## Key files
@@ -16,6 +17,10 @@ tier and a derived 0-10 score.
 - `src/lib/places.ts` - all place CRUD + tier queries
 - `src/lib/ranking.ts` - binary-insertion comparison state machine + score bands
 - `src/lib/auth.ts` - client-side password gate (SHA-256 hash comparison, not real security)
+- `src/lib/geo.ts` - deterministic mock lat/lng per place id + haversine distance (see Gotchas)
+- `src/lib/use-geolocation.ts` - browser geolocation hook used by the list and map views
+- `src/components/place-list-view.tsx` - homepage searchable list, sorted by score
+- `src/components/place-map-view.tsx` - homepage Leaflet map with score-badge pins
 - `src/components/form-field.tsx` - shared form field wrapper used by the add/edit flows
 
 ## Env vars (`.env.local`, gitignored)
@@ -29,5 +34,9 @@ as GitHub Actions repo secrets for the deploy build.
   gitignored), because `tsc` runs before `vite build` in `npm run build` and needs the file to
   already exist for a fresh CI checkout. Regenerate it locally (`npm run dev` or `npm run build`)
   before committing route changes.
+- Place coordinates on the homepage map (and the "X mi" distance shown in the list view) are not
+  real geocoding - `src/lib/geo.ts` derives a deterministic lat/lng from each place's id because
+  the DB only stores a free-text location string. This is a known, intentional tradeoff, not a
+  bug.
 
 For lint/format/build commands, use the `tira-checks` skill.

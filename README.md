@@ -5,8 +5,9 @@ A tiny app for two people to rank every tiramisu place they've tried, Beli-style
 tier, and a derived 0-10 score.
 
 Stack: Vite + React + TypeScript, TanStack Router, Tailwind v4 + shadcn/ui, Turso (hosted SQLite)
-via `@libsql/client`, deployed to GitHub Pages via Actions. Password-gated client-side (see
-`src/lib/auth.ts`) - not real security, just keeps casual visitors out.
+via `@libsql/client`, Leaflet + OpenStreetMap for the homepage map view, deployed to GitHub Pages
+via Actions. Password-gated client-side (see `src/lib/auth.ts`) - not real security, just keeps
+casual visitors out.
 
 ## Local development
 
