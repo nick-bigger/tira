@@ -168,6 +168,7 @@ export function AddPlaceOverlay({ open, onOpenChange, byTier, onSaved }: AddPlac
 
   function handleTierPick(chosenTier: Tier) {
     setTier(chosenTier)
+    setSaveError(null)
     const existingCount = byTier[chosenTier].length
     if (existingCount === 0) {
       void saveWithIndex(chosenTier, 0)
@@ -187,12 +188,14 @@ export function AddPlaceOverlay({ open, onOpenChange, byTier, onSaved }: AddPlac
       void saveWithIndex(tier, insertionIndex(next))
       return
     }
+    setSaveError(null)
     setHistory((h) => [...h, compareState])
     setCompareState(next)
     setRound((r) => r + 1)
   }
 
   function handleUndo() {
+    setSaveError(null)
     setHistory((h) => {
       if (h.length === 0) return h
       setCompareState(h[h.length - 1])
@@ -206,6 +209,7 @@ export function AddPlaceOverlay({ open, onOpenChange, byTier, onSaved }: AddPlac
     setCompareState(null)
     setHistory([])
     setCandidate(null)
+    setSaveError(null)
     setStep('search')
   }
 
