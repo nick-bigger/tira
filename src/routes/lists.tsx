@@ -54,7 +54,7 @@ function ListsPage() {
   return (
     <div className="min-h-svh">
       <header className="sticky top-0 z-10 border-b-[3px] border-border bg-background">
-        <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 sm:px-6">
           <TiraMark className="h-7 w-7" />
           <span className="font-display text-2xl font-bold">Your Lists</span>
         </div>
