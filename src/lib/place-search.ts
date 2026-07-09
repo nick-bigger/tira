@@ -17,6 +17,7 @@ export interface LocationSuggestion {
 }
 
 interface NominatimAddress {
+  road?: string
   city?: string
   town?: string
   village?: string
@@ -43,12 +44,18 @@ function cityStateOf(r: NominatimResult): string | null {
   return city ?? null
 }
 
+/**
+ * Street-level location for a place search result (e.g. "N Lamar Blvd, Austin, TX") -
+ * distinct from cityStateOf, which is used for city-only geocoding (searchLocations) and
+ * deliberately omits the street.
+ */
 function locationFor(r: NominatimResult): string {
-  const cityState = cityStateOf(r)
-  if (cityState) return cityState
+  const city = r.address?.city ?? r.address?.town ?? r.address?.village ?? r.address?.hamlet
+  const parts = [r.address?.road, city, r.address?.state].filter((p): p is string => !!p)
+  if (parts.length > 0) return parts.join(', ')
   // Fall back to the display name with the leading (matched-name) segment dropped.
-  const parts = r.display_name.split(', ')
-  return parts.slice(1, 3).join(', ') || r.display_name
+  const displayParts = r.display_name.split(', ')
+  return displayParts.slice(1, 3).join(', ') || r.display_name
 }
 
 async function nominatimSearch(
@@ -75,6 +82,7 @@ interface PhotonProperties {
   osm_type: string
   osm_id: number
   name?: string
+  street?: string
   city?: string
   town?: string
   village?: string
@@ -94,7 +102,8 @@ interface PhotonResponse {
 
 function locationForPhoton(p: PhotonProperties): string {
   const city = p.city ?? p.town ?? p.village ?? p.district
-  if (city && p.state) return `${city}, ${p.state}`
+  const parts = [p.street, city, p.state].filter((v): v is string => !!v)
+  if (parts.length > 0) return parts.join(', ')
   return city ?? p.state ?? p.country ?? ''
 }
 

@@ -1,16 +1,25 @@
 import { AppTileLayer, FitBounds, LocateControl } from '@/components/map-controls'
+import { PinIcon } from '@/components/pin-icon'
 import type { Tier } from '@/components/tier-icon'
-import { coordinateFor } from '@/lib/geo'
+import { coordinateFor, placeDistanceMi, type LatLng } from '@/lib/geo'
 import type { PlaceWithScore } from '@/lib/places'
+import { useGeolocation } from '@/lib/use-geolocation'
+import { useNavigate } from '@tanstack/react-router'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { useMemo } from 'react'
-import { MapContainer, Marker, Popup } from 'react-leaflet'
+import { useEffect, useMemo, useState } from 'react'
+import { MapContainer, Marker, useMap, useMapEvents } from 'react-leaflet'
 
 const TIER_HEX: Record<Tier, { bg: string; fg: string }> = {
   liked: { bg: '#5c8f5f', fg: '#f7eedd' },
   okay: { bg: '#c2924a', fg: '#2b1810' },
   nope: { bg: '#bd5a4d', fg: '#f7eedd' },
+}
+
+const TIER_BADGE_OUTLINE: Record<Tier, string> = {
+  liked: 'border-tier-liked text-tier-liked',
+  okay: 'border-tier-okay text-tier-okay',
+  nope: 'border-tier-nope text-tier-nope',
 }
 
 function scoreIcon(place: PlaceWithScore): L.DivIcon {
@@ -28,8 +37,23 @@ function scoreIcon(place: PlaceWithScore): L.DivIcon {
       </div>`,
     iconSize: [34, 40],
     iconAnchor: [17, 40],
-    popupAnchor: [0, -38],
   })
+}
+
+/** Clears the selected-place card when the user taps blank map area. */
+function DeselectOnMapClick({ onDeselect }: { onDeselect: () => void }) {
+  useMapEvents({ click: onDeselect })
+  return null
+}
+
+/** Pans the map to whichever pin was just selected, without changing zoom. */
+function RecenterOnSelect({ target }: { target: LatLng | null }) {
+  const map = useMap()
+  useEffect(() => {
+    if (target) map.flyTo([target.lat, target.lng], Math.max(map.getZoom(), 13), { duration: 0.5 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.lat, target?.lng])
+  return null
 }
 
 export interface PlaceMapViewProps {
@@ -37,8 +61,19 @@ export interface PlaceMapViewProps {
 }
 
 export function PlaceMapView({ places }: PlaceMapViewProps) {
+  const navigate = useNavigate()
+  const { position, locate } = useGeolocation()
   const points = useMemo(() => places.map((p) => coordinateFor(p)), [places])
   const bounds = useMemo<[number, number][]>(() => points.map((p) => [p.lat, p.lng]), [points])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const selected = places.find((p) => p.id === selectedId) ?? null
+  const selectedCoord = selected ? coordinateFor(selected) : null
+  const dist = selected && position ? placeDistanceMi(selected, position) : null
+
+  useEffect(() => {
+    locate()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div>
@@ -51,19 +86,48 @@ export function PlaceMapView({ places }: PlaceMapViewProps) {
         >
           <AppTileLayer />
           <FitBounds points={bounds} />
+          <DeselectOnMapClick onDeselect={() => setSelectedId(null)} />
+          <RecenterOnSelect target={selectedCoord} />
           {places.map((place, i) => {
             const coord = points[i]
             return (
-              <Marker key={place.id} position={[coord.lat, coord.lng]} icon={scoreIcon(place)}>
-                <Popup>
-                  <p className="font-display font-bold">{place.name}</p>
-                  {place.location && <p className="text-xs opacity-70">{place.location}</p>}
-                </Popup>
-              </Marker>
+              <Marker
+                key={place.id}
+                position={[coord.lat, coord.lng]}
+                icon={scoreIcon(place)}
+                eventHandlers={{ click: () => setSelectedId(place.id) }}
+              />
             )
           })}
           <LocateControl />
         </MapContainer>
+        {selected && (
+          <button
+            type="button"
+            onClick={() => navigate({ to: '/place/$id', params: { id: selected.id } })}
+            className="brutal-sm absolute right-3 bottom-3 left-3 z-[1000] block bg-card py-3 pr-16 pb-6 pl-4 text-left text-foreground"
+          >
+            <span
+              className={`absolute top-3 right-3 min-w-11 rounded-sm border-2 bg-card px-2 py-1 text-center font-display text-base font-bold ${TIER_BADGE_OUTLINE[selected.tier]}`}
+            >
+              {selected.score.toFixed(1)}
+            </span>
+            <span className="block min-w-0 flex-1">
+              <span className="block truncate font-display font-bold">{selected.name}</span>
+              {selected.location && (
+                <span className="flex items-center gap-1 truncate text-xs font-bold opacity-60">
+                  <PinIcon className="h-3 w-3 shrink-0" />
+                  {selected.location}
+                </span>
+              )}
+            </span>
+            {dist != null && (
+              <span className="absolute bottom-2 left-4 text-[11px] font-bold text-muted-foreground">
+                {dist.toFixed(1)} mi
+              </span>
+            )}
+          </button>
+        )}
       </div>
       <p className="mt-2.5 text-center text-xs font-bold opacity-55">
         Pins use real coordinates when a place was added via search or matched to a real address -

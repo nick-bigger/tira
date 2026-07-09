@@ -149,7 +149,12 @@ function RankedListPage() {
                   removingId={removingId}
                 />
               ) : (
-                <BookmarkMapView bookmarks={bookmarks} onRank={handleRank} />
+                <BookmarkMapView
+                  bookmarks={bookmarks}
+                  onRank={handleRank}
+                  onRemove={handleRemoveBookmark}
+                  removingId={removingId}
+                />
               ))}
 
             <button
