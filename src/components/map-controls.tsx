@@ -1,7 +1,22 @@
 import { LocateIcon } from '@/components/icons'
 import { useGeolocation } from '@/lib/use-geolocation'
 import { useEffect } from 'react'
-import { CircleMarker, useMap } from 'react-leaflet'
+import { CircleMarker, TileLayer, useMap } from 'react-leaflet'
+
+/**
+ * CARTO Positron - a light, minimal basemap (no terrain/building shading, muted labels)
+ * instead of the default OSM Mapnik style's saturated realism, so the map reads as a
+ * clean backdrop for our own brutalist score pins. Free, no API key, same OSM data.
+ */
+export function AppTileLayer() {
+  return (
+    <TileLayer
+      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+      url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+      subdomains="abcd"
+    />
+  )
+}
 
 /** Shared between place-map-view and bookmark-map-view - fits the map to a set of pins. */
 export function FitBounds({ points }: { points: [number, number][] }) {

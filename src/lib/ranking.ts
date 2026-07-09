@@ -38,7 +38,7 @@ export function estimatedRounds(existingCount: number): number {
   return existingCount === 0 ? 0 : Math.ceil(Math.log2(existingCount + 1))
 }
 
-const TIER_BANDS: Record<Tier, [min: number, max: number]> = {
+export const TIER_BANDS: Record<Tier, [min: number, max: number]> = {
   liked: [6.7, 10],
   okay: [3.4, 6.6],
   nope: [0, 3.3],

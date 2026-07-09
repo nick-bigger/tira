@@ -1,11 +1,11 @@
-import { FitBounds, LocateControl } from '@/components/map-controls'
+import { AppTileLayer, FitBounds, LocateControl } from '@/components/map-controls'
 import type { Tier } from '@/components/tier-icon'
 import { coordinateFor } from '@/lib/geo'
 import type { PlaceWithScore } from '@/lib/places'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useMemo } from 'react'
-import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
+import { MapContainer, Marker, Popup } from 'react-leaflet'
 
 const TIER_HEX: Record<Tier, { bg: string; fg: string }> = {
   liked: { bg: '#5c8f5f', fg: '#f7eedd' },
@@ -49,10 +49,7 @@ export function PlaceMapView({ places }: PlaceMapViewProps) {
           scrollWheelZoom={false}
           className="h-full w-full"
         >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+          <AppTileLayer />
           <FitBounds points={bounds} />
           {places.map((place, i) => {
             const coord = points[i]

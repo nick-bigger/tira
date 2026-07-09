@@ -1,10 +1,10 @@
-import { FitBounds, LocateControl } from '@/components/map-controls'
+import { AppTileLayer, FitBounds, LocateControl } from '@/components/map-controls'
 import type { Bookmark } from '@/lib/bookmarks'
 import { coordinateFor } from '@/lib/geo'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useMemo } from 'react'
-import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
+import { MapContainer, Marker, Popup } from 'react-leaflet'
 
 const bookmarkPinIcon = L.divIcon({
   className: '',
@@ -37,10 +37,7 @@ export function BookmarkMapView({ bookmarks, onRank }: BookmarkMapViewProps) {
           scrollWheelZoom={false}
           className="h-full w-full"
         >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+          <AppTileLayer />
           <FitBounds points={bounds} />
           {bookmarks.map((b, i) => {
             const coord = points[i]

@@ -1,4 +1,5 @@
 import { AddPlaceOverlay, type Candidate } from '@/components/add-place-overlay'
+import { AppHeader } from '@/components/app-header'
 import { BookmarkListView } from '@/components/bookmark-list-view'
 import { BookmarkMapView } from '@/components/bookmark-map-view'
 import { ListIcon, MapViewIcon } from '@/components/icons'
@@ -89,19 +90,16 @@ function RankedListPage() {
 
   return (
     <div className="min-h-svh">
-      <header className="sticky top-0 z-10 border-b-[3px] border-border bg-background">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
-          <span className="flex items-center gap-2 font-display text-2xl font-bold">
-            <TiraMark className="h-7 w-7" />
-            Tira
-          </span>
+      <AppHeader
+        actions={
           <Button
             className="brutal-xs h-auto border-0 bg-primary px-4 py-2 font-display font-bold text-primary-foreground"
             onClick={handleOpenAdd}
           >
             + Add place
           </Button>
-        </div>
+        }
+      >
         <div className="mx-auto flex max-w-5xl px-4 sm:px-6">
           <button
             type="button"
@@ -128,7 +126,7 @@ function RankedListPage() {
             Want to Try
           </button>
         </div>
-      </header>
+      </AppHeader>
 
       <main className="relative mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
         {!hasContent ? (
