@@ -135,6 +135,44 @@ export async function updatePlaceDetails(id: string, fields: PlaceDetailsInput):
   })
 }
 
+export async function updatePlaceNotes(id: string, notes: string): Promise<void> {
+  await ensureSchema()
+  await db.execute({
+    sql: 'UPDATE places SET notes = ? WHERE id = ?',
+    args: [notes || null, id],
+  })
+}
+
+/**
+ * Moves an existing place to a new tier/position - used by the "Rank Again" flow, which
+ * re-runs the pairwise comparison against every other place in the chosen tier (this place
+ * excluded) and lands on a fresh insertion index. Tier positions are always kept contiguous
+ * (0..count-1), so removing the place first compacts its old tier down to exactly the index
+ * space the comparison ran against, and the same logic works whether or not the tier changed.
+ */
+export async function rerankPlace(id: string, tier: Tier, insertionIndex: number): Promise<void> {
+  await ensureSchema()
+  const place = await getPlace(id)
+  if (!place) return
+  await db.batch(
+    [
+      {
+        sql: 'UPDATE places SET position = position - 1 WHERE tier = ? AND position > ?',
+        args: [place.tier, place.position],
+      },
+      {
+        sql: 'UPDATE places SET position = position + 1 WHERE tier = ? AND position >= ?',
+        args: [tier, insertionIndex],
+      },
+      {
+        sql: 'UPDATE places SET tier = ?, position = ? WHERE id = ?',
+        args: [tier, insertionIndex, id],
+      },
+    ],
+    'write',
+  )
+}
+
 export async function deletePlace(id: string): Promise<void> {
   await ensureSchema()
   const place = await getPlace(id)

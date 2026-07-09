@@ -1,5 +1,5 @@
 import { Field, FIELD_INPUT_CLASS } from '@/components/form-field'
-import { LocateIcon, SearchIcon } from '@/components/icons'
+import { BookmarkIcon, LocateIcon, PlusIcon, SearchIcon } from '@/components/icons'
 import { PinIcon } from '@/components/pin-icon'
 import { TIER_LABEL, TierIcon, type Tier } from '@/components/tier-icon'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ import {
   SheetDescription,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { createBookmark, deleteBookmark, type Bookmark } from '@/lib/bookmarks'
 import { haversineDistanceMi, type LatLng } from '@/lib/geo'
 import {
   useDebouncedAddressSearch,
@@ -31,15 +32,38 @@ import {
   type ComparisonState,
 } from '@/lib/ranking'
 import { useGeolocation } from '@/lib/use-geolocation'
+import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useState, type FormEvent } from 'react'
 
 type Step = 'search' | 'manual' | 'tier' | 'compare' | 'saved'
 
-interface Candidate {
+export interface Candidate {
   name: string
   location: string
   lat?: number
   lng?: number
+  /** Set when this candidate came from "Rank it" on a bookmark - deleted once ranked. */
+  bookmarkId?: string
+}
+
+/** ~50m, in miles - treats a search result as "the same place" as an existing spot. */
+const SAME_SPOT_MI = 0.03
+
+function isSameSpot(
+  a: { name: string; location: string | null; lat: number | null; lng: number | null },
+  r: PlaceSearchResult,
+): boolean {
+  if (a.lat != null && a.lng != null) {
+    if (
+      haversineDistanceMi({ lat: a.lat, lng: a.lng }, { lat: r.lat, lng: r.lng }) < SAME_SPOT_MI
+    ) {
+      return true
+    }
+  }
+  return (
+    a.name.trim().toLowerCase() === r.name.trim().toLowerCase() &&
+    (a.location ?? '').trim().toLowerCase() === r.location.trim().toLowerCase()
+  )
 }
 
 interface SavedInfo {
@@ -52,11 +76,24 @@ export interface AddPlaceOverlayProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   byTier: Record<Tier, PlaceWithScore[]>
-  onSaved: () => void | Promise<void>
+  bookmarks: Bookmark[]
+  /** Called after a place is saved, or a bookmark is created/removed - refreshes the loader data. */
+  onDataChanged: () => void | Promise<void>
+  /** Pre-fills the candidate and jumps straight to the tier step - used by "Rank it" from a bookmark. */
+  initialCandidate?: Candidate | null
 }
 
-export function AddPlaceOverlay({ open, onOpenChange, byTier, onSaved }: AddPlaceOverlayProps) {
+export function AddPlaceOverlay({
+  open,
+  onOpenChange,
+  byTier,
+  bookmarks,
+  onDataChanged,
+  initialCandidate,
+}: AddPlaceOverlayProps) {
   const { position, error: geoError, locate } = useGeolocation()
+  const navigate = useNavigate()
+  const allPlaces = [...byTier.liked, ...byTier.okay, ...byTier.nope]
 
   const [step, setStep] = useState<Step>('search')
   const [query, setQuery] = useState('')
@@ -72,6 +109,7 @@ export function AddPlaceOverlay({ open, onOpenChange, byTier, onSaved }: AddPlac
   const [savedInfo, setSavedInfo] = useState<SavedInfo | null>(null)
   const [locationOverride, setLocationOverride] = useState<LocationSuggestion | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [bookmarkPending, setBookmarkPending] = useState<string | null>(null)
 
   const searchNear = locationOverride
     ? { lat: locationOverride.lat, lng: locationOverride.lng }
@@ -86,6 +124,15 @@ export function AddPlaceOverlay({ open, onOpenChange, byTier, onSaved }: AddPlac
     if (open) locate()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
+
+  // "Rank it" from a bookmark - skip straight to the tier step with a pre-set candidate.
+  useEffect(() => {
+    if (open && initialCandidate) {
+      setCandidate(initialCandidate)
+      setStep('tier')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialCandidate])
 
   // Reset after the close transition finishes so the sheet doesn't flash back
   // to "search" while it's still animating out.
@@ -124,6 +171,25 @@ export function AddPlaceOverlay({ open, onOpenChange, byTier, onSaved }: AddPlac
     setStep('tier')
   }
 
+  function viewRankedPlace(placeId: string) {
+    onOpenChange(false)
+    void navigate({ to: '/place/$id', params: { id: placeId } })
+  }
+
+  async function toggleBookmark(r: PlaceSearchResult, existingBookmarkId: string | null) {
+    setBookmarkPending(r.id)
+    try {
+      if (existingBookmarkId) {
+        await deleteBookmark(existingBookmarkId)
+      } else {
+        await createBookmark({ name: r.name, location: r.location, lat: r.lat, lng: r.lng })
+      }
+      await onDataChanged()
+    } finally {
+      setBookmarkPending(null)
+    }
+  }
+
   function handleManualSubmit(e: FormEvent) {
     e.preventDefault()
     if (!manualName.trim()) return
@@ -151,6 +217,9 @@ export function AddPlaceOverlay({ open, onOpenChange, byTier, onSaved }: AddPlac
         lat: candidate.lat,
         lng: candidate.lng,
       })
+      if (candidate.bookmarkId) {
+        await deleteBookmark(candidate.bookmarkId)
+      }
       const tierCount = byTier[chosenTier].length + 1
       setSavedInfo({
         tier: chosenTier,
@@ -158,7 +227,7 @@ export function AddPlaceOverlay({ open, onOpenChange, byTier, onSaved }: AddPlac
         score: scoreFor(chosenTier, index, tierCount),
       })
       setStep('saved')
-      await onSaved()
+      await onDataChanged()
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save - try again.')
     } finally {
@@ -232,7 +301,12 @@ export function AddPlaceOverlay({ open, onOpenChange, byTier, onSaved }: AddPlac
             distanceFrom={locationOverride ? null : position}
             location={locationOverride}
             onLocationChange={setLocationOverride}
+            places={allPlaces}
+            bookmarks={bookmarks}
+            bookmarkPending={bookmarkPending}
             onSelect={selectResult}
+            onViewPlace={viewRankedPlace}
+            onToggleBookmark={toggleBookmark}
             onManual={() => setStep('manual')}
             onClose={handleClose}
           />
@@ -341,7 +415,12 @@ function SearchStep({
   distanceFrom,
   location,
   onLocationChange,
+  places,
+  bookmarks,
+  bookmarkPending,
   onSelect,
+  onViewPlace,
+  onToggleBookmark,
   onManual,
   onClose,
 }: {
@@ -355,7 +434,12 @@ function SearchStep({
   distanceFrom: LatLng | null
   location: LocationSuggestion | null
   onLocationChange: (v: LocationSuggestion | null) => void
+  places: PlaceWithScore[]
+  bookmarks: Bookmark[]
+  bookmarkPending: string | null
   onSelect: (r: PlaceSearchResult) => void
+  onViewPlace: (placeId: string) => void
+  onToggleBookmark: (r: PlaceSearchResult, existingBookmarkId: string | null) => void
   onManual: () => void
   onClose: () => void
 }) {
@@ -409,25 +493,63 @@ function SearchStep({
         )}
         {nearReady && !loading && !error && results.length > 0 && (
           <div className="flex flex-col gap-1">
-            {results.map((r) => (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => onSelect(r)}
-                className="flex items-center gap-2.5 rounded-lg px-2 py-2.5 text-left hover:bg-muted"
-              >
-                <PinIcon className="h-4 w-4 shrink-0 opacity-45" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-extrabold">{r.name}</span>
-                  <span className="block truncate text-xs font-bold opacity-60">{r.location}</span>
-                </span>
-                {distanceFrom && (
-                  <span className="shrink-0 text-[11px] font-bold opacity-55">
-                    {haversineDistanceMi(distanceFrom, { lat: r.lat, lng: r.lng }).toFixed(1)} mi
+            {results.map((r) => {
+              const ranked = places.find((p) => isSameSpot(p, r)) ?? null
+              const bookmark = ranked ? null : (bookmarks.find((b) => isSameSpot(b, r)) ?? null)
+              const dist = distanceFrom
+                ? haversineDistanceMi(distanceFrom, { lat: r.lat, lng: r.lng }).toFixed(1)
+                : null
+              return (
+                <div
+                  key={r.id}
+                  className="flex items-center gap-2.5 rounded-lg px-2 py-2.5 hover:bg-muted"
+                >
+                  <button
+                    type="button"
+                    onClick={() => (ranked ? onViewPlace(ranked.id) : onSelect(r))}
+                    className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                  >
+                    <PinIcon className="h-4 w-4 shrink-0 opacity-45" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-extrabold">{r.name}</span>
+                      <span className="block truncate text-xs font-bold opacity-60">
+                        {r.location}
+                      </span>
+                    </span>
+                  </button>
+                  <span className="flex shrink-0 flex-col items-end gap-1">
+                    {ranked ? (
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-tier-liked bg-tier-liked/10 text-tier-liked">
+                        <TierIcon tier="liked" className="h-3.5 w-3.5" />
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => onSelect(r)}
+                          aria-label="Rank it"
+                          className="brutal-xs flex h-7 w-7 items-center justify-center bg-card"
+                        >
+                          <PlusIcon className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={bookmarkPending === r.id}
+                          onClick={() => onToggleBookmark(r, bookmark?.id ?? null)}
+                          aria-label={bookmark ? 'Remove bookmark' : 'Bookmark for later'}
+                          className={`brutal-xs flex h-7 w-7 items-center justify-center bg-card disabled:opacity-40 ${bookmark ? 'text-accent' : ''}`}
+                        >
+                          <BookmarkIcon filled={!!bookmark} className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    )}
+                    {dist && !ranked && (
+                      <span className="text-[10px] font-bold opacity-55">{dist} mi</span>
+                    )}
                   </span>
-                )}
-              </button>
-            ))}
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

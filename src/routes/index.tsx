@@ -1,10 +1,14 @@
-import { AddPlaceOverlay } from '@/components/add-place-overlay'
+import { AddPlaceOverlay, type Candidate } from '@/components/add-place-overlay'
+import { AppHeader } from '@/components/app-header'
+import { BookmarkListView } from '@/components/bookmark-list-view'
+import { BookmarkMapView } from '@/components/bookmark-map-view'
 import { ListIcon, MapViewIcon } from '@/components/icons'
 import { PlaceListView } from '@/components/place-list-view'
 import { PlaceMapView } from '@/components/place-map-view'
 import type { Tier } from '@/components/tier-icon'
 import { TiraMark } from '@/components/tira-mark'
 import { Button } from '@/components/ui/button'
+import { deleteBookmark, listBookmarks, type Bookmark } from '@/lib/bookmarks'
 import { listPlacesByTier } from '@/lib/places'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
@@ -15,7 +19,10 @@ interface IndexSearch {
 
 export const Route = createFileRoute('/')({
   component: RankedListPage,
-  loader: () => listPlacesByTier(),
+  loader: async () => {
+    const [byTier, bookmarks] = await Promise.all([listPlacesByTier(), listBookmarks()])
+    return { byTier, bookmarks }
+  },
   validateSearch: (search: Record<string, unknown>): IndexSearch => ({
     add: search.add === true || search.add === 'true' ? true : undefined,
   }),
@@ -23,15 +30,19 @@ export const Route = createFileRoute('/')({
 
 const TIER_ORDER: Tier[] = ['liked', 'okay', 'nope']
 
+type Mode = 'been' | 'want-to-try'
 type View = 'list' | 'map'
 
 function RankedListPage() {
-  const byTier = Route.useLoaderData()
+  const { byTier, bookmarks } = Route.useLoaderData()
   const { add } = Route.useSearch()
   const router = useRouter()
   const allPlaces = TIER_ORDER.flatMap((t) => byTier[t])
+  const [mode, setMode] = useState<Mode>('been')
   const [view, setView] = useState<View>('list')
   const [addOpen, setAddOpen] = useState(false)
+  const [rankCandidate, setRankCandidate] = useState<Candidate | null>(null)
+  const [removingId, setRemovingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (add) setAddOpen(true)
@@ -39,67 +50,119 @@ function RankedListPage() {
 
   function handleAddOpenChange(next: boolean) {
     setAddOpen(next)
-    if (!next && add) {
-      void router.navigate({ to: '/', search: {}, replace: true })
+    if (!next) {
+      setRankCandidate(null)
+      if (add) void router.navigate({ to: '/', search: {}, replace: true })
     }
   }
 
-  async function handleSaved() {
+  function handleOpenAdd() {
+    setRankCandidate(null)
+    setAddOpen(true)
+  }
+
+  function handleRank(bookmark: Bookmark) {
+    setRankCandidate({
+      name: bookmark.name,
+      location: bookmark.location ?? '',
+      lat: bookmark.lat ?? undefined,
+      lng: bookmark.lng ?? undefined,
+      bookmarkId: bookmark.id,
+    })
+    setAddOpen(true)
+  }
+
+  async function handleRemoveBookmark(bookmark: Bookmark) {
+    setRemovingId(bookmark.id)
+    try {
+      await deleteBookmark(bookmark.id)
+      await router.invalidate()
+    } finally {
+      setRemovingId(null)
+    }
+  }
+
+  async function handleDataChanged() {
     await router.invalidate()
   }
 
+  const hasContent = mode === 'been' ? allPlaces.length > 0 : bookmarks.length > 0
+
   return (
     <div className="min-h-svh">
-      <header className="sticky top-0 z-10 border-b-[3px] border-border bg-background">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
-          <span className="flex items-center gap-2 font-display text-2xl font-bold">
-            <TiraMark className="h-7 w-7" />
-            Tira
-          </span>
+      <AppHeader
+        actions={
           <Button
             className="brutal-xs h-auto border-0 bg-primary px-4 py-2 font-display font-bold text-primary-foreground"
-            onClick={() => setAddOpen(true)}
+            onClick={handleOpenAdd}
           >
             + Add place
           </Button>
+        }
+      >
+        <div className="mx-auto flex max-w-5xl px-4 sm:px-6">
+          <button
+            type="button"
+            onClick={() => setMode('been')}
+            aria-pressed={mode === 'been'}
+            className={`flex-1 border-b-[3px] py-2.5 text-center font-display text-sm font-bold sm:flex-none sm:px-6 ${
+              mode === 'been'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-foreground opacity-50'
+            }`}
+          >
+            Been
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('want-to-try')}
+            aria-pressed={mode === 'want-to-try'}
+            className={`flex-1 border-b-[3px] py-2.5 text-center font-display text-sm font-bold sm:flex-none sm:px-6 ${
+              mode === 'want-to-try'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-foreground opacity-50'
+            }`}
+          >
+            Want to Try
+          </button>
         </div>
-      </header>
+      </AppHeader>
 
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
-        {allPlaces.length === 0 ? (
-          <EmptyState onAdd={() => setAddOpen(true)} />
+      <main className="relative mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
+        {!hasContent ? (
+          <EmptyState mode={mode} onAdd={handleOpenAdd} />
         ) : (
           <>
-            <div className="mb-6 inline-flex overflow-hidden rounded-md border-[2.5px] border-border shadow-[4px_4px_0px_var(--border)]">
-              <button
-                type="button"
-                onClick={() => setView('list')}
-                aria-pressed={view === 'list'}
-                className={`flex items-center gap-1.5 px-4 py-2 font-display text-sm font-bold ${
-                  view === 'list' ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground'
-                }`}
-              >
-                <ListIcon className="h-3.5 w-3.5" />
-                List
-              </button>
-              <button
-                type="button"
-                onClick={() => setView('map')}
-                aria-pressed={view === 'map'}
-                className={`flex items-center gap-1.5 border-l-[2.5px] border-border px-4 py-2 font-display text-sm font-bold ${
-                  view === 'map' ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground'
-                }`}
-              >
-                <MapViewIcon className="h-3.5 w-3.5" />
-                Map
-              </button>
-            </div>
+            {mode === 'been' &&
+              (view === 'list' ? (
+                <PlaceListView places={allPlaces} />
+              ) : (
+                <PlaceMapView places={allPlaces} />
+              ))}
+            {mode === 'want-to-try' &&
+              (view === 'list' ? (
+                <BookmarkListView
+                  bookmarks={bookmarks}
+                  onRank={handleRank}
+                  onRemove={handleRemoveBookmark}
+                  removingId={removingId}
+                />
+              ) : (
+                <BookmarkMapView bookmarks={bookmarks} onRank={handleRank} />
+              ))}
 
-            {view === 'list' ? (
-              <PlaceListView places={allPlaces} />
-            ) : (
-              <PlaceMapView places={allPlaces} />
-            )}
+            <button
+              type="button"
+              onClick={() => setView(view === 'list' ? 'map' : 'list')}
+              aria-label={view === 'list' ? 'View map' : 'View list'}
+              className="brutal-sm fixed right-4 bottom-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground sm:right-8 sm:bottom-8"
+            >
+              {view === 'list' ? (
+                <MapViewIcon className="h-5 w-5" />
+              ) : (
+                <ListIcon className="h-5 w-5" />
+              )}
+            </button>
           </>
         )}
       </main>
@@ -108,19 +171,25 @@ function RankedListPage() {
         open={addOpen}
         onOpenChange={handleAddOpenChange}
         byTier={byTier}
-        onSaved={handleSaved}
+        bookmarks={bookmarks}
+        onDataChanged={handleDataChanged}
+        initialCandidate={rankCandidate}
       />
     </div>
   )
 }
 
-function EmptyState({ onAdd }: { onAdd: () => void }) {
+function EmptyState({ mode, onAdd }: { mode: Mode; onAdd: () => void }) {
   return (
     <div className="brutal mx-auto mt-6 max-w-md bg-card p-8 text-center sm:mt-16 sm:p-10">
       <TiraMark className="mx-auto mb-3 h-10 w-10" />
-      <p className="mb-2 font-display text-xl font-bold">No tiramisu yet.</p>
+      <p className="mb-2 font-display text-xl font-bold">
+        {mode === 'been' ? 'No tiramisu yet.' : 'Nothing bookmarked yet.'}
+      </p>
       <p className="mb-5 text-sm font-bold opacity-70">
-        Add the first place you've tried to start the rankings.
+        {mode === 'been'
+          ? "Add the first place you've tried to start the rankings."
+          : 'Bookmark a place from search to try it later.'}
       </p>
       <Button
         className="brutal-sm h-auto border-0 bg-primary py-2.5 font-display font-bold text-primary-foreground"
