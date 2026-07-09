@@ -1,0 +1,160 @@
+import { BookmarkListView } from '@/components/bookmark-list-view'
+import { BookmarkMapView } from '@/components/bookmark-map-view'
+import { BOTTOM_NAV_CLEARANCE } from '@/components/bottom-nav'
+import { ListIcon, MapViewIcon } from '@/components/icons'
+import { PlaceListView } from '@/components/place-list-view'
+import { PlaceMapView } from '@/components/place-map-view'
+import type { Tier } from '@/components/tier-icon'
+import { TiraMark } from '@/components/tira-mark'
+import { Button } from '@/components/ui/button'
+import { useAppData } from '@/lib/app-data'
+import { deleteBookmark, type Bookmark } from '@/lib/bookmarks'
+import { createFileRoute } from '@tanstack/react-router'
+import { useState } from 'react'
+
+export const Route = createFileRoute('/lists')({
+  component: ListsPage,
+})
+
+const TIER_ORDER: Tier[] = ['liked', 'okay', 'nope']
+
+type Mode = 'been' | 'want-to-try'
+type View = 'list' | 'map'
+
+function ListsPage() {
+  const { byTier, bookmarks, refresh, openAdd } = useAppData()
+  const allPlaces = TIER_ORDER.flatMap((t) => byTier[t])
+  const [mode, setMode] = useState<Mode>('been')
+  const [view, setView] = useState<View>('list')
+  const [removingId, setRemovingId] = useState<string | null>(null)
+
+  function handleRank(bookmark: Bookmark) {
+    openAdd({
+      name: bookmark.name,
+      location: bookmark.location ?? '',
+      lat: bookmark.lat ?? undefined,
+      lng: bookmark.lng ?? undefined,
+      bookmarkId: bookmark.id,
+      isManual: false,
+    })
+  }
+
+  async function handleRemoveBookmark(bookmark: Bookmark) {
+    setRemovingId(bookmark.id)
+    try {
+      await deleteBookmark(bookmark.id)
+      await refresh()
+    } finally {
+      setRemovingId(null)
+    }
+  }
+
+  const hasContent = mode === 'been' ? allPlaces.length > 0 : bookmarks.length > 0
+
+  return (
+    <div className="min-h-svh">
+      <header className="sticky top-0 z-10 border-b-[3px] border-border bg-background">
+        <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-3 sm:px-6">
+          <TiraMark className="h-7 w-7" />
+          <span className="font-display text-2xl font-bold">Your Lists</span>
+        </div>
+        <div className="mx-auto flex max-w-5xl px-4 sm:px-6">
+          <button
+            type="button"
+            onClick={() => setMode('been')}
+            aria-pressed={mode === 'been'}
+            className={`flex-1 border-b-[3px] py-2.5 text-center font-display text-sm font-bold sm:flex-none sm:px-6 ${
+              mode === 'been'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-foreground opacity-50'
+            }`}
+          >
+            Been
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('want-to-try')}
+            aria-pressed={mode === 'want-to-try'}
+            className={`flex-1 border-b-[3px] py-2.5 text-center font-display text-sm font-bold sm:flex-none sm:px-6 ${
+              mode === 'want-to-try'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-foreground opacity-50'
+            }`}
+          >
+            Want to Try
+          </button>
+        </div>
+      </header>
+
+      <main className="relative mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
+        {!hasContent ? (
+          <EmptyState mode={mode} onAdd={() => openAdd()} />
+        ) : (
+          <>
+            {mode === 'been' &&
+              (view === 'list' ? (
+                <PlaceListView places={allPlaces} />
+              ) : (
+                <PlaceMapView places={allPlaces} />
+              ))}
+            {mode === 'want-to-try' &&
+              (view === 'list' ? (
+                <BookmarkListView
+                  bookmarks={bookmarks}
+                  onRank={handleRank}
+                  onRemove={handleRemoveBookmark}
+                  removingId={removingId}
+                />
+              ) : (
+                <BookmarkMapView
+                  bookmarks={bookmarks}
+                  onRank={handleRank}
+                  onRemove={handleRemoveBookmark}
+                  removingId={removingId}
+                />
+              ))}
+
+            <button
+              type="button"
+              onClick={() => setView(view === 'list' ? 'map' : 'list')}
+              aria-label={view === 'list' ? 'View map' : 'View list'}
+              className="brutal-sm fixed z-20 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground"
+              style={{
+                right: 'max(1rem, env(safe-area-inset-right))',
+                bottom: `calc(${BOTTOM_NAV_CLEARANCE} + 1rem)`,
+              }}
+            >
+              {view === 'list' ? (
+                <MapViewIcon className="h-5 w-5" />
+              ) : (
+                <ListIcon className="h-5 w-5" />
+              )}
+            </button>
+          </>
+        )}
+      </main>
+    </div>
+  )
+}
+
+function EmptyState({ mode, onAdd }: { mode: Mode; onAdd: () => void }) {
+  return (
+    <div className="brutal mx-auto mt-6 max-w-md bg-card p-8 text-center sm:mt-16 sm:p-10">
+      <TiraMark className="mx-auto mb-3 h-10 w-10" />
+      <p className="mb-2 font-display text-xl font-bold">
+        {mode === 'been' ? 'No tiramisu yet.' : 'Nothing bookmarked yet.'}
+      </p>
+      <p className="mb-5 text-sm font-bold opacity-70">
+        {mode === 'been'
+          ? "Add the first place you've tried to start the rankings."
+          : 'Bookmark a place from search to try it later.'}
+      </p>
+      <Button
+        className="brutal-sm h-auto border-0 bg-primary py-2.5 font-display font-bold text-primary-foreground"
+        onClick={onAdd}
+      >
+        + Add place
+      </Button>
+    </div>
+  )
+}

@@ -1,201 +1,200 @@
-import { AddPlaceOverlay, type Candidate } from '@/components/add-place-overlay'
-import { AppHeader } from '@/components/app-header'
-import { BookmarkListView } from '@/components/bookmark-list-view'
-import { BookmarkMapView } from '@/components/bookmark-map-view'
-import { ListIcon, MapViewIcon } from '@/components/icons'
-import { PlaceListView } from '@/components/place-list-view'
-import { PlaceMapView } from '@/components/place-map-view'
-import type { Tier } from '@/components/tier-icon'
+import { BookmarkIcon, ClockIcon, FlameIcon, HeartIcon, SearchIcon } from '@/components/icons'
+import { TIER_LABEL, TierIcon } from '@/components/tier-icon'
 import { TiraMark } from '@/components/tira-mark'
+import { TiraMarkColor } from '@/components/tira-mark-color'
 import { Button } from '@/components/ui/button'
-import { deleteBookmark, listBookmarks, type Bookmark } from '@/lib/bookmarks'
-import { listPlacesByTier } from '@/lib/places'
-import { createFileRoute, useRouter } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useAppData } from '@/lib/app-data'
+import { computeHomeStats } from '@/lib/stats'
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { format } from 'date-fns'
+import type { ReactNode } from 'react'
 
 interface IndexSearch {
   add?: true
 }
 
 export const Route = createFileRoute('/')({
-  component: RankedListPage,
-  loader: async () => {
-    const [byTier, bookmarks] = await Promise.all([listPlacesByTier(), listBookmarks()])
-    return { byTier, bookmarks }
-  },
+  component: HomePage,
   validateSearch: (search: Record<string, unknown>): IndexSearch => ({
     add: search.add === true || search.add === 'true' ? true : undefined,
   }),
 })
 
-const TIER_ORDER: Tier[] = ['liked', 'okay', 'nope']
+const GREETING_NAMES = 'Nick & Natalie'
 
-type Mode = 'been' | 'want-to-try'
-type View = 'list' | 'map'
-
-function RankedListPage() {
-  const { byTier, bookmarks } = Route.useLoaderData()
-  const { add } = Route.useSearch()
-  const router = useRouter()
-  const allPlaces = TIER_ORDER.flatMap((t) => byTier[t])
-  const [mode, setMode] = useState<Mode>('been')
-  const [view, setView] = useState<View>('list')
-  const [addOpen, setAddOpen] = useState(false)
-  const [rankCandidate, setRankCandidate] = useState<Candidate | null>(null)
-  const [removingId, setRemovingId] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (add) setAddOpen(true)
-  }, [add])
-
-  function handleAddOpenChange(next: boolean) {
-    setAddOpen(next)
-    if (!next) {
-      setRankCandidate(null)
-      if (add) void router.navigate({ to: '/', search: {}, replace: true })
-    }
-  }
-
-  function handleOpenAdd() {
-    setRankCandidate(null)
-    setAddOpen(true)
-  }
-
-  function handleRank(bookmark: Bookmark) {
-    setRankCandidate({
-      name: bookmark.name,
-      location: bookmark.location ?? '',
-      lat: bookmark.lat ?? undefined,
-      lng: bookmark.lng ?? undefined,
-      bookmarkId: bookmark.id,
-      isManual: false,
-    })
-    setAddOpen(true)
-  }
-
-  async function handleRemoveBookmark(bookmark: Bookmark) {
-    setRemovingId(bookmark.id)
-    try {
-      await deleteBookmark(bookmark.id)
-      await router.invalidate()
-    } finally {
-      setRemovingId(null)
-    }
-  }
-
-  async function handleDataChanged() {
-    await router.invalidate()
-  }
-
-  const hasContent = mode === 'been' ? allPlaces.length > 0 : bookmarks.length > 0
+function HomePage() {
+  const { byTier, bookmarks, openAdd } = useAppData()
+  const stats = computeHomeStats(byTier, bookmarks)
+  const hasTried = stats.triedCount > 0
 
   return (
-    <div className="min-h-svh">
-      <AppHeader
-        actions={
-          <Button
-            className="brutal-xs h-auto border-0 bg-primary px-4 py-2 font-display font-bold text-primary-foreground"
-            onClick={handleOpenAdd}
-          >
-            + Add place
-          </Button>
-        }
-      >
-        <div className="mx-auto flex max-w-5xl px-4 sm:px-6">
-          <button
-            type="button"
-            onClick={() => setMode('been')}
-            aria-pressed={mode === 'been'}
-            className={`flex-1 border-b-[3px] py-2.5 text-center font-display text-sm font-bold sm:flex-none sm:px-6 ${
-              mode === 'been'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-foreground opacity-50'
-            }`}
-          >
-            Been
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('want-to-try')}
-            aria-pressed={mode === 'want-to-try'}
-            className={`flex-1 border-b-[3px] py-2.5 text-center font-display text-sm font-bold sm:flex-none sm:px-6 ${
-              mode === 'want-to-try'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-foreground opacity-50'
-            }`}
-          >
-            Want to Try
-          </button>
+    <div className="mx-auto max-w-5xl px-4 pt-5 pb-6 sm:px-6 sm:pt-8">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <p className="font-display text-xl font-bold">Hey {GREETING_NAMES} 👋</p>
+          <p className="text-xs font-bold opacity-60">{format(new Date(), 'EEEE, MMMM d')}</p>
         </div>
-      </AppHeader>
+        <div className="flex shrink-0 items-center gap-1.5 font-display text-xl font-bold text-accent">
+          <TiraMarkColor className="h-8 w-8" />
+          Tira
+        </div>
+      </div>
 
-      <main className="relative mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
-        {!hasContent ? (
-          <EmptyState mode={mode} onAdd={handleOpenAdd} />
-        ) : (
-          <>
-            {mode === 'been' &&
-              (view === 'list' ? (
-                <PlaceListView places={allPlaces} />
-              ) : (
-                <PlaceMapView places={allPlaces} />
-              ))}
-            {mode === 'want-to-try' &&
-              (view === 'list' ? (
-                <BookmarkListView
-                  bookmarks={bookmarks}
-                  onRank={handleRank}
-                  onRemove={handleRemoveBookmark}
-                  removingId={removingId}
-                />
-              ) : (
-                <BookmarkMapView
-                  bookmarks={bookmarks}
-                  onRank={handleRank}
-                  onRemove={handleRemoveBookmark}
-                  removingId={removingId}
-                />
-              ))}
+      <button
+        type="button"
+        onClick={() => openAdd()}
+        className="brutal-xs mb-4 flex w-full items-center gap-2 bg-card px-3.5 py-3 text-left text-base font-bold text-muted-foreground md:text-sm"
+      >
+        <SearchIcon className="h-4 w-4 shrink-0 opacity-60" />
+        Find a new tiramisu spot...
+      </button>
 
-            <button
-              type="button"
-              onClick={() => setView(view === 'list' ? 'map' : 'list')}
-              aria-label={view === 'list' ? 'View map' : 'View list'}
-              className="brutal-sm fixed right-4 bottom-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground sm:right-8 sm:bottom-8"
+      <div className="brutal-xs mb-5 flex items-center gap-3 bg-accent px-4 py-3 text-accent-foreground">
+        <div className="flex shrink-0">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-accent-foreground bg-secondary font-display text-sm font-bold text-secondary-foreground">
+            N
+          </span>
+          <span className="-ml-2.5 flex h-8 w-8 items-center justify-center rounded-full border-2 border-accent-foreground bg-secondary text-base">
+            🌻
+          </span>
+        </div>
+        <p className="text-sm font-bold">
+          {hasTried ? (
+            <>
+              You two have tasted <b className="font-display">{stats.triedCount}</b> tiramisu
+              {stats.triedCount === 1 ? '' : 's'} together 💕
+            </>
+          ) : (
+            "You two haven't tasted any tiramisu yet - let's fix that 💕"
+          )}
+        </p>
+      </div>
+
+      {!hasTried ? (
+        <EmptyHome onAdd={() => openAdd()} />
+      ) : (
+        <>
+          <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            <StatTile
+              icon={<TiraMark className="h-4 w-4" />}
+              tint="bg-[#fdeecf]"
+              value={stats.triedCount}
+              label="Tiramisus tried"
+            />
+            <StatTile
+              icon={<HeartIcon filled className="h-4 w-4 text-[#d97a9c]" />}
+              tint="bg-[#fbe4ea]"
+              value={stats.favoritesCount}
+              label="Favorites"
+            />
+            <StatTile
+              icon={<BookmarkIcon className="h-4 w-4 text-tier-liked" />}
+              tint="bg-[#e7f0e2]"
+              value={stats.wantToTryCount}
+              label="Want to try"
+            />
+            <StatTile
+              icon={<ClockIcon className="h-4 w-4" />}
+              tint="bg-[#f1e6d5]"
+              value={stats.daysSinceLast ?? '—'}
+              label={stats.daysSinceLast === 1 ? 'Day since last bite' : 'Days since last bite'}
+            />
+          </div>
+
+          {stats.topPick && (
+            <Link
+              to="/place/$id"
+              params={{ id: stats.topPick.id }}
+              className="brutal-xs mb-3 flex items-center justify-between gap-3 bg-[#fff2e0] px-4 py-3 text-foreground no-underline"
             >
-              {view === 'list' ? (
-                <MapViewIcon className="h-5 w-5" />
-              ) : (
-                <ListIcon className="h-5 w-5" />
-              )}
-            </button>
-          </>
-        )}
-      </main>
+              <div className="min-w-0">
+                <p className="eyebrow text-[10px] text-accent">Current #1 pick</p>
+                <p className="truncate font-display text-base font-bold">{stats.topPick.name}</p>
+                {stats.topPick.location && (
+                  <p className="truncate text-xs font-bold opacity-60">{stats.topPick.location}</p>
+                )}
+              </div>
+              <span className="brutal-xs flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-tier-liked font-display text-sm font-bold text-tier-liked-foreground">
+                {stats.topPick.score.toFixed(1)}
+              </span>
+            </Link>
+          )}
 
-      <AddPlaceOverlay
-        open={addOpen}
-        onOpenChange={handleAddOpenChange}
-        byTier={byTier}
-        bookmarks={bookmarks}
-        onDataChanged={handleDataChanged}
-        initialCandidate={rankCandidate}
-      />
+          {stats.streak && (
+            <div className="brutal-xs mb-3 flex items-center gap-3 bg-secondary px-4 py-3 text-secondary-foreground">
+              <FlameIcon className="h-6 w-6 shrink-0" />
+              <div>
+                <p className="font-display text-sm font-bold">
+                  Longest streak: {stats.streak.count} spots in {stats.streak.days} days
+                </p>
+                <p className="text-xs font-bold opacity-75">You two are on a roll 🔥</p>
+              </div>
+            </div>
+          )}
+
+          {stats.recentlyAdded.length > 0 && (
+            <>
+              <p className="mb-2 font-display text-sm font-bold">Recently added</p>
+              <div className="flex flex-col gap-2">
+                {stats.recentlyAdded.map((p) => (
+                  <Link
+                    key={p.id}
+                    to="/place/$id"
+                    params={{ id: p.id }}
+                    className="brutal-xs flex items-center justify-between gap-2 bg-card px-3.5 py-2.5 text-foreground no-underline"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <TierIcon tier={p.tier} className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate text-sm font-bold">{p.name}</span>
+                      <span className="shrink-0 text-xs font-bold opacity-50">
+                        {TIER_LABEL[p.tier]}
+                      </span>
+                    </span>
+                    <span className="shrink-0 font-display text-sm font-bold text-tier-liked">
+                      {p.score.toFixed(1)}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
     </div>
   )
 }
 
-function EmptyState({ mode, onAdd }: { mode: Mode; onAdd: () => void }) {
+function StatTile({
+  icon,
+  tint,
+  value,
+  label,
+}: {
+  icon: ReactNode
+  tint: string
+  value: number | string
+  label: string
+}) {
   return (
-    <div className="brutal mx-auto mt-6 max-w-md bg-card p-8 text-center sm:mt-16 sm:p-10">
+    <div className="brutal-xs flex flex-col gap-1 bg-card p-3">
+      <span
+        className={`mb-0.5 flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border ${tint}`}
+      >
+        {icon}
+      </span>
+      <span className="font-display text-2xl leading-none font-bold">{value}</span>
+      <span className="text-[0.68rem] font-bold text-muted-foreground">{label}</span>
+    </div>
+  )
+}
+
+function EmptyHome({ onAdd }: { onAdd: () => void }) {
+  return (
+    <div className="brutal mx-auto mt-4 max-w-md bg-card p-8 text-center">
       <TiraMark className="mx-auto mb-3 h-10 w-10" />
-      <p className="mb-2 font-display text-xl font-bold">
-        {mode === 'been' ? 'No tiramisu yet.' : 'Nothing bookmarked yet.'}
-      </p>
+      <p className="mb-2 font-display text-xl font-bold">No tiramisu yet.</p>
       <p className="mb-5 text-sm font-bold opacity-70">
-        {mode === 'been'
-          ? "Add the first place you've tried to start the rankings."
-          : 'Bookmark a place from search to try it later.'}
+        Add the first place you've tried together to start your rankings.
       </p>
       <Button
         className="brutal-sm h-auto border-0 bg-primary py-2.5 font-display font-bold text-primary-foreground"

@@ -216,6 +216,79 @@ export function CheckIcon({ className }: { className?: string }) {
   )
 }
 
+export function HomeIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 11l9-7 9 7" />
+      <path d="M5 10v9a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1v-9" />
+    </svg>
+  )
+}
+
+export function HeartIcon({ className, filled = false }: { className?: string; filled?: boolean }) {
+  if (filled) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 21s-7-4.35-9.5-8.8C.7 8.6 2.4 5 6 5c2 0 3.5 1.1 4.3 2.6.2.3.6.3.8 0C11.9 6.1 13.4 5 15.4 5c3.6 0 5.3 3.6 3.5 7.2C19 16.65 12 21 12 21z" />
+      </svg>
+    )
+  }
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.3}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 21s-7-4.35-9.5-8.8C.7 8.6 2.4 5 6 5c2 0 3.5 1.1 4.3 2.6.2.3.6.3.8 0C11.9 6.1 13.4 5 15.4 5c3.6 0 5.3 3.6 3.5 7.2C19 16.65 12 21 12 21z" />
+    </svg>
+  )
+}
+
+export function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.3}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  )
+}
+
+export function FlameIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M8 3s-4 3-4 8a4 4 0 008 0c0 2 1.5 3 1.5 3S18 12 18 8c0-3-2-5-2-5s0 2-1.5 3.5C13.5 5 12 3 12 3s-1.5 3-4 0z" />
+    </svg>
+  )
+}
+
 export function BookmarkIcon({
   className,
   filled = false,

@@ -292,7 +292,7 @@ export function AddPlaceOverlay({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
+      <SheetContent fullScreen>
         {step === 'search' && (
           <SearchStep
             query={query}
