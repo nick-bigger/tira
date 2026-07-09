@@ -44,6 +44,10 @@ export function ensureSchema(): Promise<void> {
         Promise.all([
           addColumnIfMissing('lat', 'ALTER TABLE places ADD COLUMN lat REAL'),
           addColumnIfMissing('lng', 'ALTER TABLE places ADD COLUMN lng REAL'),
+          addColumnIfMissing(
+            'is_manual',
+            'ALTER TABLE places ADD COLUMN is_manual INTEGER NOT NULL DEFAULT 0',
+          ),
           db.execute(
             `
           CREATE TABLE IF NOT EXISTS bookmarks (

@@ -35,6 +35,7 @@ interface NominatimResult {
 }
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search'
+const PHOTON_URL = 'https://photon.komoot.io/api/'
 
 function cityStateOf(r: NominatimResult): string | null {
   const city = r.address?.city ?? r.address?.town ?? r.address?.village ?? r.address?.hamlet
@@ -70,11 +71,53 @@ async function nominatimSearch(
   return (await res.json()) as NominatimResult[]
 }
 
+interface PhotonProperties {
+  osm_type: string
+  osm_id: number
+  name?: string
+  city?: string
+  town?: string
+  village?: string
+  district?: string
+  state?: string
+  country?: string
+}
+
+interface PhotonFeature {
+  properties: PhotonProperties
+  geometry: { coordinates: [number, number] }
+}
+
+interface PhotonResponse {
+  features: PhotonFeature[]
+}
+
+function locationForPhoton(p: PhotonProperties): string {
+  const city = p.city ?? p.town ?? p.village ?? p.district
+  if (city && p.state) return `${city}, ${p.state}`
+  return city ?? p.state ?? p.country ?? ''
+}
+
+async function photonSearch(
+  query: string,
+  params: Record<string, string>,
+  signal?: AbortSignal,
+): Promise<PhotonFeature[]> {
+  const search = new URLSearchParams({ q: query, limit: '8', ...params })
+  const res = await fetch(`${PHOTON_URL}?${search.toString()}`, {
+    headers: { Accept: 'application/json' },
+    signal,
+  })
+  if (!res.ok) throw new Error(`Photon search failed: ${res.status}`)
+  const body = (await res.json()) as PhotonResponse
+  return body.features.filter((f) => f.properties.name)
+}
+
 /**
- * Free, keyless place search via OSM Nominatim - matches the no-API-key
- * approach already used for map tiles (see geo.ts). Browsers can't set a
- * User-Agent header, but Nominatim's usage policy accepts the Referer header
- * browsers send automatically as app identification.
+ * Fuzzy, keyless place search via Photon (Komoot's geocoder, built on OSM
+ * data with typo-tolerant matching) - unlike Nominatim's free-text search,
+ * it still finds a place when the query has a typo (e.g. "chiptole" ->
+ * "Chipotle"). Falls back to Nominatim's exact matching if Photon errors.
  */
 export async function searchPlaces(
   query: string,
@@ -86,22 +129,46 @@ export async function searchPlaces(
   const params: Record<string, string> = {}
   if (opts.near) {
     // Hard-restrict to the greater metro area around the selected location -
-    // a soft bias (bounded=0) still let unrelated places from anywhere in
-    // the world outrank real local matches.
+    // a soft bias still let unrelated places from anywhere in the world
+    // outrank real local matches.
     const { lat, lng } = opts.near
     const span = 0.6
-    params.viewbox = `${lng - span},${lat + span},${lng + span},${lat - span}`
-    params.bounded = '1'
+    params.bbox = `${lng - span},${lat - span},${lng + span},${lat + span}`
+    params.lat = String(lat)
+    params.lon = String(lng)
   }
 
-  const results = await nominatimSearch(trimmed, params, opts.signal)
-  return results.map((r) => ({
-    id: `osm:${r.place_id}`,
-    name: r.name || r.display_name.split(',')[0],
-    location: locationFor(r),
-    lat: Number(r.lat),
-    lng: Number(r.lon),
-  }))
+  try {
+    const features = await photonSearch(trimmed, params, opts.signal)
+    return features.map((f) => {
+      const [lng, lat] = f.geometry.coordinates
+      return {
+        id: `osm:${f.properties.osm_type}${f.properties.osm_id}`,
+        name: f.properties.name ?? trimmed,
+        location: locationForPhoton(f.properties),
+        lat,
+        lng,
+      }
+    })
+  } catch (err) {
+    if (opts.signal?.aborted) throw err
+
+    const nominatimParams: Record<string, string> = {}
+    if (opts.near) {
+      const { lat, lng } = opts.near
+      const span = 0.6
+      nominatimParams.viewbox = `${lng - span},${lat + span},${lng + span},${lat - span}`
+      nominatimParams.bounded = '1'
+    }
+    const results = await nominatimSearch(trimmed, nominatimParams, opts.signal)
+    return results.map((r) => ({
+      id: `osm:${r.place_id}`,
+      name: r.name || r.display_name.split(',')[0],
+      location: locationFor(r),
+      lat: Number(r.lat),
+      lng: Number(r.lon),
+    }))
+  }
 }
 
 /**

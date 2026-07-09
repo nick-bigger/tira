@@ -181,6 +181,41 @@ export function CalendarIcon({ className }: { className?: string }) {
   )
 }
 
+export function SortIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 4v16" />
+      <path d="M3 7l3-3 3 3" />
+      <path d="M18 20V4" />
+      <path d="M21 17l-3 3-3-3" />
+    </svg>
+  )
+}
+
+export function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={3}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  )
+}
+
 export function BookmarkIcon({
   className,
   filled = false,

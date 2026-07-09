@@ -52,11 +52,17 @@ as GitHub Actions repo secrets for the deploy build.
   `coordinateFor()` in `src/lib/geo.ts` falls back to a deterministic mock derived from the
   place's id for the map pin and "X mi" distance. This mixed-fidelity state is a known,
   intentional tradeoff, not a bug.
-- `src/lib/place-search.ts` hard-restricts place search to a bounding box (`bounded=1` +
-  `viewbox`) around the resolved location instead of using Nominatim's soft `bounded=0` bias -
-  otherwise irrelevant same-named results from anywhere in the world can outrank real local
-  matches. The overlay never falls back to an unscoped global search before a location resolves;
-  it prompts the user to wait for geolocation or search a city instead.
+- `src/lib/place-search.ts` hard-restricts place search to a bounding box around the resolved
+  location instead of a soft bias - otherwise irrelevant same-named results from anywhere in the
+  world can outrank real local matches. The overlay never falls back to an unscoped global search
+  before a location resolves; it prompts the user to wait for geolocation or search a city
+  instead.
+- `searchPlaces()` in `place-search.ts` queries Photon (`photon.komoot.io`), not Nominatim, because
+  Photon does typo-tolerant fuzzy matching (e.g. "chiptole" -> "Chipotle") and Nominatim's free-text
+  search doesn't - it returns zero results for a misspelled query. `searchLocations()` and
+  `searchAddresses()` still use Nominatim since those inputs (typed city/address) don't need fuzzy
+  matching. `searchPlaces()` falls back to Nominatim if the Photon request itself fails (network/5xx),
+  which restores exact-match-only search rather than losing results entirely.
 - Form text must render at 16px on mobile (`text-base md:text-sm`, not a bare `text-sm`) or iOS
   Safari auto-zooms the page on focus. The shadcn `Input`/`Textarea` primitives already do this;
   raw `<input>`/`<textarea>` elements (e.g. the homepage/bookmarks search bars, the add-place

@@ -1,6 +1,7 @@
-import { SearchIcon } from '@/components/icons'
+import { CheckIcon, SearchIcon, SortIcon } from '@/components/icons'
 import { PinIcon } from '@/components/pin-icon'
 import type { Tier } from '@/components/tier-icon'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { placeDistanceMi } from '@/lib/geo'
 import type { PlaceWithScore } from '@/lib/places'
 import { useGeolocation } from '@/lib/use-geolocation'
@@ -13,12 +14,22 @@ const TIER_BADGE_OUTLINE: Record<Tier, string> = {
   nope: 'text-tier-nope border-tier-nope',
 }
 
+type SortBy = 'score' | 'distance' | 'date'
+
+const SORT_LABEL: Record<SortBy, string> = {
+  score: 'Score',
+  distance: 'Distance',
+  date: 'Date added',
+}
+
 export interface PlaceListViewProps {
   places: PlaceWithScore[]
 }
 
 export function PlaceListView({ places }: PlaceListViewProps) {
   const [query, setQuery] = useState('')
+  const [sortBy, setSortBy] = useState<SortBy>('score')
+  const [sortOpen, setSortOpen] = useState(false)
   const { position, locate } = useGeolocation()
 
   useEffect(() => {
@@ -26,6 +37,8 @@ export function PlaceListView({ places }: PlaceListViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Always keyed off the score-sorted order (the prop's natural order), independent of
+  // whatever sort the user has picked for display, so "#3" still means #3 by score.
   const ranks = useMemo(() => {
     const map = new Map<string, number>()
     places.forEach((place, i) => map.set(place.id, i + 1))
@@ -40,17 +53,70 @@ export function PlaceListView({ places }: PlaceListViewProps) {
     )
   }, [places, query])
 
+  const sorted = useMemo(() => {
+    if (sortBy === 'date') {
+      return [...filtered].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
+    }
+    if (sortBy === 'distance' && position) {
+      return [...filtered].sort(
+        (a, b) => placeDistanceMi(a, position) - placeDistanceMi(b, position),
+      )
+    }
+    return filtered
+  }, [filtered, sortBy, position])
+
   return (
     <div>
-      <div className="relative mb-6">
-        <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 opacity-55" />
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search places or locations..."
-          className="brutal-flat h-10 w-full bg-card py-2 pr-3 pl-8 text-base font-bold text-foreground placeholder:text-muted-foreground focus:shadow-[3px_3px_0px_var(--border)] focus:outline-none md:text-sm"
-        />
+      <div className="mb-6 flex items-center gap-2">
+        <div className="relative flex-1">
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 opacity-55" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search places or locations..."
+            className="brutal-flat h-10 w-full bg-card py-2 pr-3 pl-8 text-base font-bold text-foreground placeholder:text-muted-foreground focus:shadow-[3px_3px_0px_var(--border)] focus:outline-none md:text-sm"
+          />
+        </div>
+        <Popover open={sortOpen} onOpenChange={setSortOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              aria-label="Sort places"
+              className="brutal-flat flex h-10 shrink-0 items-center gap-1.5 bg-card px-3 text-sm font-bold text-foreground"
+            >
+              <SortIcon className="h-3.5 w-3.5" />
+              {SORT_LABEL[sortBy]}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="end"
+            sideOffset={6}
+            className="brutal-sm w-44 border-0 bg-card p-0"
+          >
+            {(Object.keys(SORT_LABEL) as SortBy[]).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => {
+                  setSortBy(option)
+                  setSortOpen(false)
+                }}
+                aria-pressed={sortBy === option}
+                className={`flex w-full items-center gap-2 px-3.5 py-2.5 text-left font-display text-sm font-bold ${
+                  sortBy === option ? 'text-primary' : ''
+                }`}
+              >
+                <CheckIcon
+                  className={`h-3.5 w-3.5 shrink-0 ${sortBy === option ? '' : 'invisible'}`}
+                />
+                {SORT_LABEL[option]}
+              </button>
+            ))}
+          </PopoverContent>
+        </Popover>
       </div>
 
       {filtered.length === 0 ? (
@@ -59,7 +125,7 @@ export function PlaceListView({ places }: PlaceListViewProps) {
         </p>
       ) : (
         <div className="flex flex-col gap-2.5">
-          {filtered.map((place) => (
+          {sorted.map((place) => (
             <Link
               key={place.id}
               to="/place/$id"
