@@ -14,6 +14,7 @@ export interface Place {
   createdAt: string
   lat: number | null
   lng: number | null
+  isManual: boolean
 }
 
 export interface PlaceWithScore extends Place {
@@ -33,6 +34,7 @@ function rowToPlace(row: Row): Place {
     createdAt: row.created_at as string,
     lat: row.lat === null ? null : Number(row.lat),
     lng: row.lng === null ? null : Number(row.lng),
+    isManual: Number(row.is_manual) === 1,
   }
 }
 
@@ -83,6 +85,7 @@ export interface NewPlaceInput {
   insertionIndex: number
   lat?: number
   lng?: number
+  isManual: boolean
 }
 
 export async function createPlace(input: NewPlaceInput): Promise<string> {
@@ -95,7 +98,7 @@ export async function createPlace(input: NewPlaceInput): Promise<string> {
         args: [input.tier, input.insertionIndex],
       },
       {
-        sql: 'INSERT INTO places (id, name, location, notes, visited_date, tier, position, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        sql: 'INSERT INTO places (id, name, location, notes, visited_date, tier, position, lat, lng, is_manual) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         args: [
           id,
           input.name,
@@ -106,6 +109,7 @@ export async function createPlace(input: NewPlaceInput): Promise<string> {
           input.insertionIndex,
           input.lat ?? null,
           input.lng ?? null,
+          input.isManual ? 1 : 0,
         ],
       },
     ],

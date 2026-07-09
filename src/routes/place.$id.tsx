@@ -146,6 +146,22 @@ function PlaceDetailPage() {
           <TierIcon tier={place.tier} className="h-3.5 w-3.5 shrink-0" />
           Rank Again
         </button>
+        {place.isManual && (
+          <>
+            <div className="h-[2px] bg-border" />
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false)
+                setEditing(true)
+              }}
+              className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left font-display text-sm font-bold"
+            >
+              <PencilIcon className="h-3.5 w-3.5 shrink-0" />
+              Edit Details
+            </button>
+          </>
+        )}
         <div className="h-[2px] bg-border" />
         <button
           type="button"
@@ -192,17 +208,7 @@ function PlaceDetailPage() {
                   <TierIcon tier={place.tier} className="h-3 w-3" />
                   {TIER_LABEL[place.tier]} · #{place.rankInTier} of {byTier[place.tier].length}
                 </span>
-                <div className="mt-2 flex items-center gap-2">
-                  <h1 className="font-display text-2xl font-bold text-balance">{place.name}</h1>
-                  <button
-                    type="button"
-                    aria-label="Edit place details"
-                    onClick={() => setEditing(true)}
-                    className="shrink-0 opacity-40 hover:opacity-80"
-                  >
-                    <PencilIcon className="h-4 w-4" />
-                  </button>
-                </div>
+                <h1 className="mt-2 font-display text-2xl font-bold text-balance">{place.name}</h1>
                 {place.location && (
                   <p className="mt-1 flex items-center gap-1 text-sm font-bold opacity-60">
                     <PinIcon className="h-3.5 w-3.5 shrink-0" />

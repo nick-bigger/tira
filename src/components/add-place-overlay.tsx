@@ -44,6 +44,8 @@ export interface Candidate {
   lng?: number
   /** Set when this candidate came from "Rank it" on a bookmark - deleted once ranked. */
   bookmarkId?: string
+  /** True when typed in via "add manually" rather than picked from a search result/bookmark - only these are editable later. */
+  isManual: boolean
 }
 
 /** ~50m, in miles - treats a search result as "the same place" as an existing spot. */
@@ -167,7 +169,7 @@ export function AddPlaceOverlay({
   const existingInTier = tier ? byTier[tier] : []
 
   function selectResult(r: PlaceSearchResult) {
-    setCandidate({ name: r.name, location: r.location, lat: r.lat, lng: r.lng })
+    setCandidate({ name: r.name, location: r.location, lat: r.lat, lng: r.lng, isManual: false })
     setStep('tier')
   }
 
@@ -198,6 +200,7 @@ export function AddPlaceOverlay({
       location: manualLocation.trim(),
       lat: manualCoord?.lat,
       lng: manualCoord?.lng,
+      isManual: true,
     })
     setStep('tier')
   }
@@ -216,6 +219,7 @@ export function AddPlaceOverlay({
         insertionIndex: index,
         lat: candidate.lat,
         lng: candidate.lng,
+        isManual: candidate.isManual,
       })
       if (candidate.bookmarkId) {
         await deleteBookmark(candidate.bookmarkId)

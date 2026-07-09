@@ -68,6 +68,7 @@ function RankedListPage() {
       lat: bookmark.lat ?? undefined,
       lng: bookmark.lng ?? undefined,
       bookmarkId: bookmark.id,
+      isManual: false,
     })
     setAddOpen(true)
   }
