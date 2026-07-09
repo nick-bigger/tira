@@ -42,14 +42,14 @@ export function PlaceListView({ places }: PlaceListViewProps) {
 
   return (
     <div>
-      <div className="relative mb-6 max-w-xs">
+      <div className="relative mb-6">
         <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 opacity-55" />
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search places or locations..."
-          className="brutal-flat w-full bg-card py-2 pr-3 pl-8 text-sm font-bold text-foreground placeholder:text-muted-foreground focus:shadow-[3px_3px_0px_var(--border)] focus:outline-none"
+          className="brutal-flat h-10 w-full bg-card py-2 pr-3 pl-8 text-sm font-bold text-foreground placeholder:text-muted-foreground focus:shadow-[3px_3px_0px_var(--border)] focus:outline-none"
         />
       </div>
 
