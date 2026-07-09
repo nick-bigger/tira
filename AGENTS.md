@@ -57,5 +57,9 @@ as GitHub Actions repo secrets for the deploy build.
   otherwise irrelevant same-named results from anywhere in the world can outrank real local
   matches. The overlay never falls back to an unscoped global search before a location resolves;
   it prompts the user to wait for geolocation or search a city instead.
+- Form text must render at 16px on mobile (`text-base md:text-sm`, not a bare `text-sm`) or iOS
+  Safari auto-zooms the page on focus. The shadcn `Input`/`Textarea` primitives already do this;
+  raw `<input>`/`<textarea>` elements (e.g. the homepage/bookmarks search bars, the add-place
+  overlay's search and city fields, `NotesEditor`) must follow the same pattern.
 
 For lint/format/build commands, use the `tira-checks` skill.

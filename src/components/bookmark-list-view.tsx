@@ -43,7 +43,7 @@ export function BookmarkListView({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search places or locations..."
-          className="brutal-flat h-10 w-full bg-card py-2 pr-3 pl-8 text-sm font-bold text-foreground placeholder:text-muted-foreground focus:shadow-[3px_3px_0px_var(--border)] focus:outline-none"
+          className="brutal-flat h-10 w-full bg-card py-2 pr-3 pl-8 text-base font-bold text-foreground placeholder:text-muted-foreground focus:shadow-[3px_3px_0px_var(--border)] focus:outline-none md:text-sm"
         />
       </div>
 

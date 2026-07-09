@@ -460,7 +460,7 @@ function SearchStep({
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           placeholder="Search any place - cafés, bakeries, Costco..."
-          className="brutal-flat w-full bg-background py-2.5 pr-3 pl-8 text-sm font-bold text-foreground placeholder:text-muted-foreground placeholder:opacity-60 focus:shadow-[3px_3px_0px_var(--border)] focus:outline-none"
+          className="brutal-flat w-full bg-background py-2.5 pr-3 pl-8 text-base font-bold text-foreground placeholder:text-muted-foreground placeholder:opacity-60 focus:shadow-[3px_3px_0px_var(--border)] focus:outline-none md:text-sm"
         />
       </div>
       <LocationField value={location} onChange={onLocationChange} />
@@ -590,7 +590,7 @@ function LocationField({
         onBlur={() => setFocused(false)}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search a city"
-        className="brutal-flat w-full bg-background py-2.5 pr-3 pl-8 text-sm font-bold text-foreground placeholder:text-muted-foreground placeholder:opacity-60 focus:shadow-[3px_3px_0px_var(--border)] focus:outline-none"
+        className="brutal-flat w-full bg-background py-2.5 pr-3 pl-8 text-base font-bold text-foreground placeholder:text-muted-foreground placeholder:opacity-60 focus:shadow-[3px_3px_0px_var(--border)] focus:outline-none md:text-sm"
       />
       {focused && (
         <div className="brutal-sm absolute top-full right-0 left-0 z-20 mt-1.5 max-h-48 overflow-y-auto bg-card p-1">
