@@ -28,7 +28,7 @@ function HomePage() {
   const hasTried = stats.triedCount > 0
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pt-5 pb-6 sm:px-6 sm:pt-8">
+    <div className="mx-auto max-w-5xl px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-6 sm:px-6 sm:pt-[max(2rem,env(safe-area-inset-top))]">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <p className="font-display text-xl font-bold">Hey {GREETING_NAMES} 👋</p>

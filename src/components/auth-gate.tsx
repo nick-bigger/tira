@@ -1,4 +1,4 @@
-import { TiraMark } from '@/components/tira-mark'
+import { TiraMarkColor } from '@/components/tira-mark-color'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { isUnlocked, tryUnlock } from '@/lib/auth'
@@ -31,7 +31,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
         onSubmit={handleSubmit}
         className="brutal w-full max-w-sm bg-card px-6 py-8 text-center"
       >
-        <TiraMark className="mx-auto mb-3 h-14 w-14" />
+        <TiraMarkColor className="mx-auto mb-3 h-14 w-14" />
         <h1 className="mb-6 font-display text-4xl font-bold">Tira</h1>
         <label className="brutal-sm flex items-center gap-2 bg-background px-3 py-2">
           <svg className="h-4 w-4 shrink-0 opacity-70" viewBox="0 0 24 24" fill="currentColor">

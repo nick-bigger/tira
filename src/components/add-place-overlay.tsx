@@ -459,7 +459,6 @@ function SearchStep({
       <div className="relative mb-2.5 shrink-0">
         <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 opacity-55" />
         <input
-          autoFocus
           type="text"
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}

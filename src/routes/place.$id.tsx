@@ -84,7 +84,7 @@ function PlaceDetailPage() {
     return (
       <div className="min-h-svh">
         <header className="sticky top-0 z-10 border-b-[3px] border-border bg-background">
-          <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-2.5 sm:px-6">
+          <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 pt-[max(0.625rem,env(safe-area-inset-top))] pb-2.5 sm:px-6">
             <button
               type="button"
               aria-label="Cancel editing"
@@ -168,7 +168,7 @@ function PlaceDetailPage() {
   return (
     <div className="min-h-svh pb-12">
       <header className="sticky top-0 z-10 border-b-[3px] border-border bg-background">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 pt-[max(0.625rem,env(safe-area-inset-top))] pb-2.5 sm:px-6">
           <Link
             to="/"
             aria-label="Back to rankings"
