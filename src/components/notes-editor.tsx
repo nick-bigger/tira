@@ -56,7 +56,7 @@ export function NotesEditor({ open, onOpenChange, place, onSaved }: NotesEditorP
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="What did you think?"
-            className="brutal-sm min-h-0 flex-1 resize-none bg-background p-3 text-sm font-bold placeholder:opacity-50 sm:min-h-32 sm:flex-none"
+            className="brutal-sm min-h-0 flex-1 resize-none bg-background p-3 text-base font-bold placeholder:opacity-50 sm:min-h-32 sm:flex-none md:text-sm"
           />
           <div className="mt-5 flex shrink-0 gap-2 sm:mt-4">
             <Button
