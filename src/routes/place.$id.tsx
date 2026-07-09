@@ -1,4 +1,3 @@
-import { AppHeader } from '@/components/app-header'
 import { Field, FIELD_INPUT_CLASS } from '@/components/form-field'
 import {
   CalendarIcon,
@@ -17,18 +16,14 @@ import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { useAppData } from '@/lib/app-data'
 import {
   directionsUrl,
   getSavedMapProvider,
   saveMapProvider,
   type MapProvider,
 } from '@/lib/directions'
-import {
-  deletePlace,
-  listPlacesByTier,
-  updatePlaceDetails,
-  type PlaceWithScore,
-} from '@/lib/places'
+import { deletePlace, updatePlaceDetails, type PlaceWithScore } from '@/lib/places'
 import { TIER_BANDS } from '@/lib/ranking'
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import { format } from 'date-fns'
@@ -37,7 +32,6 @@ import { useState, type FormEvent } from 'react'
 
 export const Route = createFileRoute('/place/$id')({
   component: PlaceDetailPage,
-  loader: () => listPlacesByTier(),
 })
 
 const TIER_BG: Record<Tier, string> = {
@@ -48,7 +42,7 @@ const TIER_BG: Record<Tier, string> = {
 
 function PlaceDetailPage() {
   const { id } = Route.useParams()
-  const byTier = Route.useLoaderData()
+  const { byTier, refresh } = useAppData()
   const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -61,7 +55,6 @@ function PlaceDetailPage() {
   if (!place) {
     return (
       <div className="min-h-svh">
-        <AppHeader />
         <div className="flex items-center justify-center px-6 py-16">
           <div className="brutal bg-card p-8 text-center">
             <p className="mb-4 font-display text-xl font-bold">Couldn't find that place.</p>
@@ -79,18 +72,18 @@ function PlaceDetailPage() {
     if (!confirm(`Delete "${place!.name}"? This can't be undone.`)) return
     setDeleting(true)
     await deletePlace(place!.id)
-    await router.invalidate()
+    await refresh()
     router.navigate({ to: '/' })
   }
 
   async function handleDataChanged() {
-    await router.invalidate()
+    await refresh()
   }
 
   if (editing) {
     return (
       <div className="min-h-svh">
-        <AppHeader>
+        <header className="sticky top-0 z-10 border-b-[3px] border-border bg-background">
           <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-2.5 sm:px-6">
             <button
               type="button"
@@ -102,7 +95,7 @@ function PlaceDetailPage() {
             </button>
             <p className="eyebrow truncate text-xs opacity-60">Editing {place.name}</p>
           </div>
-        </AppHeader>
+        </header>
         <div className="px-4 py-6 sm:px-6 sm:py-10">
           <div className="mx-auto max-w-md">
             <EditForm
@@ -110,7 +103,7 @@ function PlaceDetailPage() {
               onCancel={() => setEditing(false)}
               onSaved={async () => {
                 setEditing(false)
-                await router.invalidate()
+                await refresh()
               }}
             />
           </div>
@@ -174,7 +167,7 @@ function PlaceDetailPage() {
 
   return (
     <div className="min-h-svh pb-12">
-      <AppHeader>
+      <header className="sticky top-0 z-10 border-b-[3px] border-border bg-background">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
           <Link
             to="/"
@@ -185,7 +178,7 @@ function PlaceDetailPage() {
           </Link>
           {placeMenu}
         </div>
-      </AppHeader>
+      </header>
       <div className="mx-auto max-w-5xl sm:px-6 sm:py-10">
         <div className="sm:grid sm:grid-cols-[minmax(0,440px)_1fr] sm:items-start sm:gap-8">
           <div className="relative sm:sticky sm:top-6">

@@ -114,6 +114,16 @@ body {
   border: 2.5px solid var(--border);
   border-radius: var(--radius-md);
 }
+/* The brutal-* utilities above set their own border-radius as unlayered CSS, which beats
+   Tailwind's `rounded-full` utility on specificity regardless of class order - so a circular
+   brutal button (h-X w-X rounded-full) would otherwise render as a rounded square. These
+   compound selectors have higher specificity than either class alone and win outright. */
+.brutal.rounded-full,
+.brutal-sm.rounded-full,
+.brutal-xs.rounded-full,
+.brutal-flat.rounded-full {
+  border-radius: 9999px;
+}
 
 a.brutal,
 button.brutal,
@@ -139,6 +149,28 @@ a.brutal-xs:hover,
 button.brutal-xs:hover {
   transform: translate(1.5px, 1.5px);
   box-shadow: 1.5px 1.5px 0px var(--border);
+}
+
+@keyframes shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--muted);
+  border-radius: var(--radius-sm);
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: shimmer 1.3s infinite;
 }
 
 @layer base {
