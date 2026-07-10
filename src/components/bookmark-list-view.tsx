@@ -118,7 +118,7 @@ export function BookmarkListView({
           {sorted.map((b) => (
             <div
               key={b.id}
-              className="brutal-sm flex items-center gap-3 bg-card px-4 py-3 text-foreground"
+              className="brutal-sm brutal-hover flex items-center gap-3 bg-card px-4 py-3 text-foreground"
             >
               <Link
                 to="/bookmark/$id"

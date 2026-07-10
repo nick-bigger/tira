@@ -93,7 +93,7 @@ export function BookmarkMapView({ bookmarks, onRank, onRemove, removingId }: Boo
           <LocateControl />
         </MapContainer>
         {selected && (
-          <div className="brutal-sm absolute right-3 bottom-3 left-3 z-[1000] bg-card px-4 pt-3 pb-6 text-foreground">
+          <div className="brutal-sm brutal-hover absolute right-3 bottom-3 left-3 z-[1000] bg-card px-4 pt-3 pb-6 text-foreground">
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -136,9 +136,6 @@ export function BookmarkMapView({ bookmarks, onRank, onRemove, removingId }: Boo
           </div>
         )}
       </div>
-      <p className="mt-2.5 text-center text-xs font-bold opacity-55">
-        Places you've bookmarked to try - pins use real coordinates from search.
-      </p>
     </div>
   )
 }

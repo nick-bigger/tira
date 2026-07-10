@@ -153,6 +153,19 @@ button.brutal-xs:hover {
   box-shadow: 1.5px 1.5px 0px var(--border);
 }
 
+/* Opt-in version of the brutal-sm press animation above, for non-a/button containers (e.g. a
+   card <div> that wraps its own nested action buttons, so the whole element can't be an <a>/
+   <button> itself) that still need the same hover affordance. */
+.brutal-sm.brutal-hover {
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease;
+}
+.brutal-sm.brutal-hover:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px var(--border);
+}
+
 @keyframes shimmer {
   from {
     transform: translateX(-100%);
