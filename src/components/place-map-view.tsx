@@ -77,7 +77,7 @@ export function PlaceMapView({ places }: PlaceMapViewProps) {
 
   return (
     <div>
-      <div className="brutal relative h-[min(62vh,620px)] overflow-hidden">
+      <div className="brutal relative z-0 h-[min(62vh,620px)] overflow-hidden">
         <MapContainer
           center={[39.8, -98.5]}
           zoom={4}
