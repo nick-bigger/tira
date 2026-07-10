@@ -131,17 +131,22 @@ function ListsPage() {
             <button
               type="button"
               onClick={() => setView(view === 'list' ? 'map' : 'list')}
-              aria-label={view === 'list' ? 'View map' : 'View list'}
-              className="brutal-sm fixed z-20 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground"
+              className="brutal-sm fixed z-20 flex h-12 items-center gap-2 rounded-full bg-primary px-4 text-primary-foreground"
               style={{
                 right: 'max(1rem, env(safe-area-inset-right))',
                 bottom: `calc(${BOTTOM_NAV_CLEARANCE} + 1rem)`,
               }}
             >
               {view === 'list' ? (
-                <MapViewIcon className="h-5 w-5" />
+                <>
+                  <MapViewIcon className="h-5 w-5 shrink-0" />
+                  <span className="font-display text-sm font-bold">View Map</span>
+                </>
               ) : (
-                <ListIcon className="h-5 w-5" />
+                <>
+                  <ListIcon className="h-5 w-5 shrink-0" />
+                  <span className="font-display text-sm font-bold">View List</span>
+                </>
               )}
             </button>
           </>

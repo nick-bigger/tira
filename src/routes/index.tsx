@@ -176,24 +176,24 @@ function StatTile({
   const content = (
     <>
       <span
-        className={`mb-0.5 flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border ${tint}`}
+        className={`mb-1 flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border ${tint}`}
       >
         {icon}
       </span>
-      <span className="font-display text-2xl leading-none font-bold">{value}</span>
-      <span className="text-[0.68rem] font-bold text-muted-foreground">{label}</span>
+      <span className="font-display text-3xl leading-none font-bold">{value}</span>
+      <span className="text-xs font-bold text-muted-foreground">{label}</span>
     </>
   )
 
   if (!linkSearch) {
-    return <div className="brutal-xs flex flex-col gap-1 bg-card p-3">{content}</div>
+    return <div className="brutal-xs flex flex-col gap-1 bg-card p-3.5">{content}</div>
   }
 
   return (
     <Link
       to="/lists"
       search={linkSearch}
-      className="brutal-xs flex flex-col gap-1 bg-card p-3 text-foreground no-underline"
+      className="brutal-xs flex flex-col gap-1 bg-card p-3.5 text-foreground no-underline"
     >
       {content}
     </Link>

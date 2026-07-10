@@ -1,3 +1,4 @@
+import { TiraMark } from '@/components/tira-mark'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { updatePlaceNotes, type PlaceWithScore } from '@/lib/places'
@@ -51,13 +52,18 @@ export function NotesEditor({ open, onOpenChange, place, onSaved }: NotesEditorP
           <DialogPrimitive.Description className="sr-only">
             Edit your notes for {place.name}.
           </DialogPrimitive.Description>
-          <Textarea
-            autoFocus
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="What did you think?"
-            className="brutal-sm min-h-0 flex-1 resize-none bg-background p-3 text-base font-bold placeholder:opacity-50 sm:min-h-32 sm:flex-none md:text-sm"
-          />
+          <div className="relative min-h-0 flex-1 sm:flex-none">
+            {!notes && (
+              <TiraMark className="pointer-events-none absolute top-3 left-3 h-4 w-4 opacity-30" />
+            )}
+            <Textarea
+              autoFocus
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="What did you think?"
+              className={`brutal-sm h-full min-h-0 w-full resize-none bg-background p-3 text-base font-bold placeholder:opacity-50 sm:min-h-32 md:text-sm ${!notes ? 'pl-9' : ''}`}
+            />
+          </div>
           <div className="mt-5 flex shrink-0 gap-2 sm:mt-4">
             <Button
               type="button"

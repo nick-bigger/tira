@@ -235,7 +235,7 @@ function PlaceDetailPage() {
                   onClick={() => setNotesOpen(true)}
                   className="w-full rounded-[var(--radius-md)] border-2 border-dashed border-border/50 bg-transparent p-4 text-left text-sm font-bold opacity-60 hover:border-border hover:opacity-90"
                 >
-                  No notes yet - add some.
+                  No notes yet - what did you think? 🍰
                 </button>
               )}
             </div>

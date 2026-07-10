@@ -55,6 +55,10 @@ function SheetContent({
         )}
         {...props}
       >
+        <span
+          aria-hidden
+          className="mx-auto mb-3 h-1.5 w-10 shrink-0 rounded-full bg-border/40 sm:hidden"
+        />
         {children}
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>

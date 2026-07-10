@@ -1,4 +1,5 @@
 import type { Candidate } from '@/components/add-place-page'
+import { Confetti } from '@/components/celebration'
 import { TierIcon, type Tier } from '@/components/tier-icon'
 import { Button } from '@/components/ui/button'
 import {
@@ -384,14 +385,16 @@ function CompareStep({
 }
 
 function SavedStep({ candidate, info }: { candidate: Candidate; info: SavedInfo }) {
+  const isNewTop = info.tier === 'liked' && info.rank === 1
   return (
-    <div className="flex flex-col items-center py-6 text-center">
+    <div className="relative flex flex-col items-center py-6 text-center">
+      {isNewTop && <Confetti />}
       <span
         className={`brutal-sm mb-3 flex h-12 w-12 items-center justify-center ${TIER_STYLE[info.tier]}`}
       >
         <TierIcon tier={info.tier} className="h-6 w-6" />
       </span>
-      <SheetTitle className="mb-1">Saved!</SheetTitle>
+      <SheetTitle className="mb-1">{isNewTop ? 'New #1! 🎉' : 'Saved!'}</SheetTitle>
       <SheetDescription>
         {candidate.name} · #{info.rank} in {TIER_LABEL[info.tier]} · Score {info.score.toFixed(1)}
       </SheetDescription>

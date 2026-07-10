@@ -3,6 +3,7 @@ import { BookmarkIcon, LocateIcon, PlusIcon, SearchIcon } from '@/components/ico
 import { PinIcon } from '@/components/pin-icon'
 import { PlaceDetailHeader } from '@/components/place-detail-header'
 import { TierIcon, type Tier } from '@/components/tier-icon'
+import { TiraMark } from '@/components/tira-mark'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { UnreviewedPlaceDetail } from '@/components/unreviewed-place-detail'
@@ -320,7 +321,7 @@ function SearchStep({
           )}
           {!nearReady && geoError && (
             <p className="px-1 py-6 text-center text-sm font-bold opacity-60">
-              Couldn't get your location - search a city above to continue.
+              Couldn't spot you on the map - search a city above and we'll pick up from there.
             </p>
           )}
           {nearReady && !query.trim() && (
@@ -349,7 +350,7 @@ function SearchStep({
           )}
           {nearReady && !loading && !error && query.trim() && results.length === 0 && (
             <p className="px-1 py-6 text-center text-sm font-bold opacity-60">
-              No matches nearby - try "add manually" below.
+              Nothing turned up nearby - add it by hand below and it's yours to rank.
             </p>
           )}
           {nearReady && !loading && !error && results.length > 0 && (
@@ -423,9 +424,12 @@ function RecentlyViewed({
 }) {
   if (recentViews.length === 0) {
     return (
-      <p className="px-1 py-6 text-center text-sm font-bold opacity-50">
-        Search for a restaurant, bakery, grocery store - anywhere you've had tiramisu.
-      </p>
+      <div className="px-1 py-6 text-center">
+        <TiraMark className="mx-auto mb-3 h-8 w-8 opacity-50" />
+        <p className="text-sm font-bold opacity-50">
+          Search for a restaurant, bakery, grocery store - anywhere you've had tiramisu.
+        </p>
+      </div>
     )
   }
 

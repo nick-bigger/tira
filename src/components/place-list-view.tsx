@@ -9,10 +9,10 @@ import { useGeolocation } from '@/lib/use-geolocation'
 import { Link } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 
-const TIER_BADGE_OUTLINE: Record<Tier, string> = {
-  liked: 'text-tier-liked border-tier-liked',
-  okay: 'text-tier-okay border-tier-okay',
-  nope: 'text-tier-nope border-tier-nope',
+const TIER_BADGE_FILL: Record<Tier, string> = {
+  liked: 'bg-tier-liked text-tier-liked-foreground',
+  okay: 'bg-tier-okay text-tier-okay-foreground',
+  nope: 'bg-tier-nope text-tier-nope-foreground',
 }
 
 type SortBy = 'score' | 'distance' | 'date'
@@ -161,10 +161,10 @@ export function PlaceListView({ places }: PlaceListViewProps) {
                 key={place.id}
                 to="/place/$id"
                 params={{ id: place.id }}
-                className="brutal-sm relative block bg-card pt-[0.85rem] pr-[4.75rem] pb-[2.1rem] pl-4 text-foreground no-underline"
+                className="brutal-sm relative block bg-card pt-[0.85rem] pr-[4.25rem] pb-[2.1rem] pl-4 text-foreground no-underline"
               >
                 <span
-                  className={`absolute top-[0.85rem] right-[0.7rem] min-w-12 rounded-sm border-2 bg-card px-[0.6rem] py-[0.3rem] text-center font-display text-[0.95rem] font-bold ${TIER_BADGE_OUTLINE[place.tier]}`}
+                  className={`brutal-xs absolute top-[0.75rem] right-[0.7rem] flex h-10 w-10 items-center justify-center rounded-full font-display text-sm font-bold ${TIER_BADGE_FILL[place.tier]}`}
                 >
                   {place.score.toFixed(1)}
                 </span>
