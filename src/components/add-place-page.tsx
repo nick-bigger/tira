@@ -304,6 +304,7 @@ function SearchStep({
           <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 opacity-55" />
           <input
             type="text"
+            autoFocus
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
             placeholder="Search any place - cafés, bakeries, Costco..."
