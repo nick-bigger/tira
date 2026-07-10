@@ -3,6 +3,7 @@ import { Field, FIELD_INPUT_CLASS } from '@/components/form-field'
 import { CalendarIcon, ChevronLeftIcon, MoreIcon, PencilIcon, TrashIcon } from '@/components/icons'
 import { NotesEditor } from '@/components/notes-editor'
 import { PinIcon } from '@/components/pin-icon'
+import { PlaceDetailHeader } from '@/components/place-detail-header'
 import { PlaceHeroMap } from '@/components/place-hero-map'
 import { RerankSheet } from '@/components/rerank-sheet'
 import { TIER_LABEL, TierIcon, type Tier } from '@/components/tier-icon'
@@ -13,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useAppData } from '@/lib/app-data'
 import { deletePlace, updatePlaceDetails, type PlaceWithScore } from '@/lib/places'
 import { TIER_BANDS } from '@/lib/ranking'
+import { useGoBack } from '@/lib/use-go-back'
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import { format } from 'date-fns'
 import { useState, type FormEvent } from 'react'
@@ -31,6 +33,7 @@ function PlaceDetailPage() {
   const { id } = Route.useParams()
   const { byTier, refresh } = useAppData()
   const router = useRouter()
+  const goBack = useGoBack('/')
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -154,18 +157,7 @@ function PlaceDetailPage() {
 
   return (
     <div className="min-h-svh pb-12">
-      <header className="sticky top-0 z-10 border-b-[3px] border-border bg-background">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 pt-[max(0.625rem,env(safe-area-inset-top))] pb-2.5 sm:px-6">
-          <Link
-            to="/"
-            aria-label="Back to rankings"
-            className="brutal-xs flex h-8 w-8 items-center justify-center bg-card text-foreground"
-          >
-            <ChevronLeftIcon className="h-4 w-4" />
-          </Link>
-          {placeMenu}
-        </div>
-      </header>
+      <PlaceDetailHeader onBack={goBack} right={placeMenu} />
       <div className="mx-auto max-w-5xl sm:px-6 sm:py-10">
         <div className="sm:grid sm:grid-cols-[minmax(0,440px)_1fr] sm:items-start sm:gap-8">
           <div className="relative sm:sticky sm:top-6">

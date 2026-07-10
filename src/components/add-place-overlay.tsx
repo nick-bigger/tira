@@ -1,7 +1,8 @@
 import { Field, FIELD_INPUT_CLASS } from '@/components/form-field'
 import { BookmarkIcon, LocateIcon, PlusIcon, SearchIcon } from '@/components/icons'
 import { PinIcon } from '@/components/pin-icon'
-import { TIER_LABEL, TierIcon, type Tier } from '@/components/tier-icon'
+import { PlaceDetailHeader } from '@/components/place-detail-header'
+import { TierIcon, type Tier } from '@/components/tier-icon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -11,8 +12,9 @@ import {
   SheetDescription,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { UnreviewedPlaceDetail } from '@/components/unreviewed-place-detail'
 import { createBookmark, deleteBookmark, type Bookmark } from '@/lib/bookmarks'
-import { haversineDistanceMi, type LatLng } from '@/lib/geo'
+import { coordinateFor, haversineDistanceMi, type LatLng } from '@/lib/geo'
 import {
   useDebouncedAddressSearch,
   useDebouncedLocationSearch,
@@ -20,22 +22,13 @@ import {
   type LocationSuggestion,
   type PlaceSearchResult,
 } from '@/lib/place-search'
-import { createPlace, type PlaceWithScore } from '@/lib/places'
-import {
-  applyComparison,
-  compareIndex,
-  estimatedRounds,
-  initComparison,
-  insertionIndex,
-  scoreFor,
-  type ComparisonOutcome,
-  type ComparisonState,
-} from '@/lib/ranking'
+import type { PlaceWithScore } from '@/lib/places'
+import { listRecentViews, recordRecentView, type RecentView } from '@/lib/recent-views'
 import { useGeolocation } from '@/lib/use-geolocation'
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useState, type FormEvent } from 'react'
 
-type Step = 'search' | 'manual' | 'tier' | 'compare' | 'saved'
+type Step = 'search' | 'manual' | 'preview'
 
 export interface Candidate {
   name: string
@@ -68,21 +61,16 @@ function isSameSpot(
   )
 }
 
-interface SavedInfo {
-  tier: Tier
-  rank: number
-  score: number
-}
-
 export interface AddPlaceOverlayProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   byTier: Record<Tier, PlaceWithScore[]>
   bookmarks: Bookmark[]
-  /** Called after a place is saved, or a bookmark is created/removed - refreshes the loader data. */
+  /** Called after a bookmark is created/removed - refreshes the loader data. */
   onDataChanged: () => void | Promise<void>
-  /** Pre-fills the candidate and jumps straight to the tier step - used by "Rank it" from a bookmark. */
-  initialCandidate?: Candidate | null
+  /** Called once a candidate is picked (search result, recent, or manual entry) - opens the
+   *  review flow as its own overlay stacked on top of this one, via AppShell's openReview. */
+  onReviewCandidate: (candidate: Candidate) => void
 }
 
 export function AddPlaceOverlay({
@@ -91,7 +79,7 @@ export function AddPlaceOverlay({
   byTier,
   bookmarks,
   onDataChanged,
-  initialCandidate,
+  onReviewCandidate,
 }: AddPlaceOverlayProps) {
   const { position, error: geoError, locate } = useGeolocation()
   const navigate = useNavigate()
@@ -102,16 +90,10 @@ export function AddPlaceOverlay({
   const [manualName, setManualName] = useState('')
   const [manualLocation, setManualLocation] = useState('')
   const [manualCoord, setManualCoord] = useState<{ lat: number; lng: number } | null>(null)
-  const [candidate, setCandidate] = useState<Candidate | null>(null)
-  const [tier, setTier] = useState<Tier | null>(null)
-  const [compareState, setCompareState] = useState<ComparisonState | null>(null)
-  const [history, setHistory] = useState<ComparisonState[]>([])
-  const [round, setRound] = useState(1)
-  const [saving, setSaving] = useState(false)
-  const [savedInfo, setSavedInfo] = useState<SavedInfo | null>(null)
   const [locationOverride, setLocationOverride] = useState<LocationSuggestion | null>(null)
-  const [saveError, setSaveError] = useState<string | null>(null)
   const [bookmarkPending, setBookmarkPending] = useState<string | null>(null)
+  const [recentViews, setRecentViews] = useState<RecentView[]>([])
+  const [previewResult, setPreviewResult] = useState<PlaceSearchResult | null>(null)
 
   const searchNear = locationOverride
     ? { lat: locationOverride.lat, lng: locationOverride.lng }
@@ -127,14 +109,9 @@ export function AddPlaceOverlay({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  // "Rank it" from a bookmark - skip straight to the tier step with a pre-set candidate.
   useEffect(() => {
-    if (open && initialCandidate) {
-      setCandidate(initialCandidate)
-      setStep('tier')
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, initialCandidate])
+    if (open) void listRecentViews().then(setRecentViews)
+  }, [open])
 
   // Reset after the close transition finishes so the sheet doesn't flash back
   // to "search" while it's still animating out.
@@ -146,36 +123,57 @@ export function AddPlaceOverlay({
       setManualName('')
       setManualLocation('')
       setManualCoord(null)
-      setCandidate(null)
-      setTier(null)
-      setCompareState(null)
-      setHistory([])
-      setRound(1)
-      setSaving(false)
-      setSavedInfo(null)
       setLocationOverride(null)
-      setSaveError(null)
+      setPreviewResult(null)
     }, 250)
     return () => clearTimeout(t)
   }, [open])
 
-  useEffect(() => {
-    if (step !== 'saved') return
-    const t = setTimeout(() => onOpenChange(false), 1400)
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step])
-
-  const existingInTier = tier ? byTier[tier] : []
-
+  // Tapping a row opens its detail view; the quick "+" button on the row (and "Review It" on
+  // the detail view itself) both hand the candidate off to the review overlay.
   function selectResult(r: PlaceSearchResult) {
-    setCandidate({ name: r.name, location: r.location, lat: r.lat, lng: r.lng, isManual: false })
-    setStep('tier')
+    void recordRecentView({ name: r.name, location: r.location, lat: r.lat, lng: r.lng })
+    onReviewCandidate({
+      name: r.name,
+      location: r.location,
+      lat: r.lat,
+      lng: r.lng,
+      isManual: false,
+    })
+  }
+
+  function openPreview(r: PlaceSearchResult) {
+    setPreviewResult(r)
+    setStep('preview')
+    void recordRecentView({ name: r.name, location: r.location, lat: r.lat, lng: r.lng })
+  }
+
+  function confirmReview() {
+    if (previewResult) selectResult(previewResult)
   }
 
   function viewRankedPlace(placeId: string) {
     onOpenChange(false)
     void navigate({ to: '/place/$id', params: { id: placeId } })
+    const place = allPlaces.find((p) => p.id === placeId)
+    if (place) {
+      void recordRecentView({
+        name: place.name,
+        location: place.location,
+        lat: place.lat,
+        lng: place.lng,
+        placeId: place.id,
+      })
+    }
+  }
+
+  function viewBookmarkedPlace(bookmarkId: string) {
+    onOpenChange(false)
+    void navigate({ to: '/bookmark/$id', params: { id: bookmarkId } })
+    const bm = bookmarks.find((b) => b.id === bookmarkId)
+    if (bm) {
+      void recordRecentView({ name: bm.name, location: bm.location, lat: bm.lat, lng: bm.lng })
+    }
   }
 
   async function toggleBookmark(r: PlaceSearchResult, existingBookmarkId: string | null) {
@@ -195,94 +193,17 @@ export function AddPlaceOverlay({
   function handleManualSubmit(e: FormEvent) {
     e.preventDefault()
     if (!manualName.trim()) return
-    setCandidate({
+    onReviewCandidate({
       name: manualName.trim(),
       location: manualLocation.trim(),
       lat: manualCoord?.lat,
       lng: manualCoord?.lng,
       isManual: true,
     })
-    setStep('tier')
-  }
-
-  async function saveWithIndex(chosenTier: Tier, index: number) {
-    if (!candidate) return
-    setSaving(true)
-    setSaveError(null)
-    try {
-      await createPlace({
-        name: candidate.name,
-        location: candidate.location,
-        notes: '',
-        visitedDate: '',
-        tier: chosenTier,
-        insertionIndex: index,
-        lat: candidate.lat,
-        lng: candidate.lng,
-        isManual: candidate.isManual,
-      })
-      if (candidate.bookmarkId) {
-        await deleteBookmark(candidate.bookmarkId)
-      }
-      const tierCount = byTier[chosenTier].length + 1
-      setSavedInfo({
-        tier: chosenTier,
-        rank: index + 1,
-        score: scoreFor(chosenTier, index, tierCount),
-      })
-      setStep('saved')
-      await onDataChanged()
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Failed to save - try again.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  function handleTierPick(chosenTier: Tier) {
-    setTier(chosenTier)
-    setSaveError(null)
-    const existingCount = byTier[chosenTier].length
-    if (existingCount === 0) {
-      void saveWithIndex(chosenTier, 0)
-      return
-    }
-    setCompareState(initComparison(existingCount))
-    setHistory([])
-    setRound(1)
-    setStep('compare')
-  }
-
-  function handleChoice(outcome: ComparisonOutcome) {
-    if (!tier || !compareState) return
-    const next = applyComparison(compareState, outcome)
-    const nextIndex = compareIndex(next)
-    if (nextIndex === null) {
-      void saveWithIndex(tier, insertionIndex(next))
-      return
-    }
-    setSaveError(null)
-    setHistory((h) => [...h, compareState])
-    setCompareState(next)
-    setRound((r) => r + 1)
-  }
-
-  function handleUndo() {
-    setSaveError(null)
-    setHistory((h) => {
-      if (h.length === 0) return h
-      setCompareState(h[h.length - 1])
-      setRound((r) => Math.max(1, r - 1))
-      return h.slice(0, -1)
-    })
   }
 
   function resetToSearch() {
-    setTier(null)
-    setCompareState(null)
-    setHistory([])
-    setCandidate(null)
-    setSaveError(null)
+    setPreviewResult(null)
     setStep('search')
   }
 
@@ -307,9 +228,12 @@ export function AddPlaceOverlay({
             onLocationChange={setLocationOverride}
             places={allPlaces}
             bookmarks={bookmarks}
+            recentViews={recentViews}
             bookmarkPending={bookmarkPending}
             onSelect={selectResult}
+            onPreview={openPreview}
             onViewPlace={viewRankedPlace}
+            onViewBookmark={viewBookmarkedPlace}
             onToggleBookmark={toggleBookmark}
             onManual={() => setStep('manual')}
             onClose={handleClose}
@@ -329,34 +253,17 @@ export function AddPlaceOverlay({
             onClose={handleClose}
           />
         )}
-        {step === 'tier' && candidate && (
-          <TierStep
-            candidate={candidate}
-            onPick={handleTierPick}
+        {step === 'preview' && previewResult && (
+          <PreviewStep
+            result={previewResult}
+            bookmark={bookmarks.find((b) => isSameSpot(b, previewResult)) ?? null}
+            bookmarkPending={bookmarkPending === previewResult.id}
+            onToggleBookmark={(existingBookmarkId: string | null) =>
+              toggleBookmark(previewResult, existingBookmarkId)
+            }
+            onReview={confirmReview}
             onChange={resetToSearch}
-            onClose={handleClose}
-            disabled={saving}
-            error={saveError}
           />
-        )}
-        {step === 'compare' && candidate && tier && compareState && (
-          <CompareStep
-            candidate={candidate}
-            tier={tier}
-            existing={existingInTier}
-            compareState={compareState}
-            round={round}
-            canUndo={history.length > 0}
-            onChoice={handleChoice}
-            onUndo={handleUndo}
-            onChange={resetToSearch}
-            onClose={handleClose}
-            disabled={saving}
-            error={saveError}
-          />
-        )}
-        {step === 'saved' && savedInfo && candidate && (
-          <SavedStep candidate={candidate} info={savedInfo} />
         )}
       </SheetContent>
     </Sheet>
@@ -378,36 +285,6 @@ function CloseButton({ onClose }: { onClose: () => void }) {
   )
 }
 
-function SelectedPlaceHeader({
-  candidate,
-  onChange,
-  onClose,
-}: {
-  candidate: Candidate
-  onChange: () => void
-  onClose: () => void
-}) {
-  return (
-    <div className="brutal-sm mb-4 flex items-center justify-between gap-2 bg-background px-3 py-2.5">
-      <div className="min-w-0">
-        <p className="truncate font-display text-base font-bold">{candidate.name}</p>
-        {candidate.location && (
-          <p className="flex items-center gap-1 truncate text-xs font-bold opacity-60">
-            <PinIcon className="h-3 w-3 shrink-0" />
-            {candidate.location}
-          </p>
-        )}
-      </div>
-      <div className="flex shrink-0 items-center gap-2.5">
-        <button type="button" onClick={onChange} className="text-xs font-bold text-accent">
-          Change
-        </button>
-        <CloseButton onClose={onClose} />
-      </div>
-    </div>
-  )
-}
-
 function SearchStep({
   query,
   onQueryChange,
@@ -421,9 +298,12 @@ function SearchStep({
   onLocationChange,
   places,
   bookmarks,
+  recentViews,
   bookmarkPending,
   onSelect,
+  onPreview,
   onViewPlace,
+  onViewBookmark,
   onToggleBookmark,
   onManual,
   onClose,
@@ -440,9 +320,12 @@ function SearchStep({
   onLocationChange: (v: LocationSuggestion | null) => void
   places: PlaceWithScore[]
   bookmarks: Bookmark[]
+  recentViews: RecentView[]
   bookmarkPending: string | null
   onSelect: (r: PlaceSearchResult) => void
+  onPreview: (r: PlaceSearchResult) => void
   onViewPlace: (placeId: string) => void
+  onViewBookmark: (bookmarkId: string) => void
   onToggleBookmark: (r: PlaceSearchResult, existingBookmarkId: string | null) => void
   onManual: () => void
   onClose: () => void
@@ -479,12 +362,25 @@ function SearchStep({
           </p>
         )}
         {nearReady && !query.trim() && (
-          <p className="px-1 py-6 text-center text-sm font-bold opacity-50">
-            Search for a restaurant, bakery, grocery store - anywhere you've had tiramisu.
-          </p>
+          <RecentlyViewed
+            recentViews={recentViews}
+            places={places}
+            bookmarks={bookmarks}
+            distanceFrom={distanceFrom}
+            bookmarkPending={bookmarkPending}
+            onSelect={onSelect}
+            onPreview={onPreview}
+            onViewPlace={onViewPlace}
+            onViewBookmark={onViewBookmark}
+            onToggleBookmark={onToggleBookmark}
+          />
         )}
         {nearReady && loading && (
-          <p className="py-6 text-center text-sm font-bold opacity-60">Searching...</p>
+          <div className="flex flex-col gap-1">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <ResultRowSkeleton key={i} />
+            ))}
+          </div>
         )}
         {nearReady && !loading && error && (
           <p className="py-6 text-center text-sm font-bold text-destructive">{error}</p>
@@ -503,54 +399,19 @@ function SearchStep({
                 ? haversineDistanceMi(distanceFrom, { lat: r.lat, lng: r.lng }).toFixed(1)
                 : null
               return (
-                <div
+                <ResultRow
                   key={r.id}
-                  className="flex items-center gap-2.5 rounded-lg px-2 py-2.5 hover:bg-muted"
-                >
-                  <button
-                    type="button"
-                    onClick={() => (ranked ? onViewPlace(ranked.id) : onSelect(r))}
-                    className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
-                  >
-                    <PinIcon className="h-4 w-4 shrink-0 opacity-45" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-extrabold">{r.name}</span>
-                      <span className="block truncate text-xs font-bold opacity-60">
-                        {r.location}
-                      </span>
-                    </span>
-                  </button>
-                  <span className="flex shrink-0 flex-col items-end gap-1">
-                    {ranked ? (
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-tier-liked bg-tier-liked/10 text-tier-liked">
-                        <TierIcon tier="liked" className="h-3.5 w-3.5" />
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => onSelect(r)}
-                          aria-label="Rank it"
-                          className="brutal-xs flex h-7 w-7 items-center justify-center bg-card"
-                        >
-                          <PlusIcon className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={bookmarkPending === r.id}
-                          onClick={() => onToggleBookmark(r, bookmark?.id ?? null)}
-                          aria-label={bookmark ? 'Remove bookmark' : 'Bookmark for later'}
-                          className={`brutal-xs flex h-7 w-7 items-center justify-center bg-card disabled:opacity-40 ${bookmark ? 'text-accent' : ''}`}
-                        >
-                          <BookmarkIcon filled={!!bookmark} className="h-3.5 w-3.5" />
-                        </button>
-                      </span>
-                    )}
-                    {dist && !ranked && (
-                      <span className="text-[10px] font-bold opacity-55">{dist} mi</span>
-                    )}
-                  </span>
-                </div>
+                  result={r}
+                  ranked={ranked}
+                  bookmark={bookmark}
+                  dist={dist}
+                  bookmarkPending={bookmarkPending}
+                  onSelect={onSelect}
+                  onPreview={onPreview}
+                  onViewPlace={onViewPlace}
+                  onViewBookmark={onViewBookmark}
+                  onToggleBookmark={onToggleBookmark}
+                />
               )
             })}
           </div>
@@ -564,6 +425,203 @@ function SearchStep({
         Can't find it? Enter it manually →
       </button>
     </>
+  )
+}
+
+function recentViewToResult(rv: RecentView): PlaceSearchResult {
+  const coord = coordinateFor({ id: rv.placeId ?? rv.id, lat: rv.lat, lng: rv.lng })
+  return { id: rv.placeId ?? rv.id, name: rv.name, location: rv.location ?? '', ...coord }
+}
+
+/** Shown in place of the "search for a place" hint once the shared history has entries - lets
+ *  either of you jump back into a place you (or the other person) just looked at. */
+function RecentlyViewed({
+  recentViews,
+  places,
+  bookmarks,
+  distanceFrom,
+  bookmarkPending,
+  onSelect,
+  onPreview,
+  onViewPlace,
+  onViewBookmark,
+  onToggleBookmark,
+}: {
+  recentViews: RecentView[]
+  places: PlaceWithScore[]
+  bookmarks: Bookmark[]
+  distanceFrom: LatLng | null
+  bookmarkPending: string | null
+  onSelect: (r: PlaceSearchResult) => void
+  onPreview: (r: PlaceSearchResult) => void
+  onViewPlace: (placeId: string) => void
+  onViewBookmark: (bookmarkId: string) => void
+  onToggleBookmark: (r: PlaceSearchResult, existingBookmarkId: string | null) => void
+}) {
+  if (recentViews.length === 0) {
+    return (
+      <p className="px-1 py-6 text-center text-sm font-bold opacity-50">
+        Search for a restaurant, bakery, grocery store - anywhere you've had tiramisu.
+      </p>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="mb-1 px-1 font-display text-sm font-bold opacity-70">Recently Viewed</p>
+      {recentViews.map((rv) => {
+        const result = recentViewToResult(rv)
+        const ranked = rv.placeId ? (places.find((p) => p.id === rv.placeId) ?? null) : null
+        const bookmark = ranked ? null : (bookmarks.find((b) => isSameSpot(b, result)) ?? null)
+        const dist = distanceFrom ? haversineDistanceMi(distanceFrom, result).toFixed(1) : null
+        return (
+          <ResultRow
+            key={rv.id}
+            result={result}
+            ranked={ranked}
+            bookmark={bookmark}
+            dist={dist}
+            bookmarkPending={bookmarkPending}
+            onSelect={onSelect}
+            onPreview={onPreview}
+            onViewPlace={onViewPlace}
+            onViewBookmark={onViewBookmark}
+            onToggleBookmark={onToggleBookmark}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+const TIER_BADGE_TINT: Record<Tier, string> = {
+  liked: 'border-tier-liked bg-tier-liked/10 text-tier-liked',
+  okay: 'border-tier-okay bg-tier-okay/10 text-tier-okay',
+  nope: 'border-tier-nope bg-tier-nope/10 text-tier-nope',
+}
+
+function ResultRow({
+  result,
+  ranked,
+  bookmark,
+  dist,
+  bookmarkPending,
+  onSelect,
+  onPreview,
+  onViewPlace,
+  onViewBookmark,
+  onToggleBookmark,
+}: {
+  result: PlaceSearchResult
+  ranked: PlaceWithScore | null
+  bookmark: Bookmark | null
+  dist: string | null
+  bookmarkPending: string | null
+  onSelect: (r: PlaceSearchResult) => void
+  onPreview: (r: PlaceSearchResult) => void
+  onViewPlace: (placeId: string) => void
+  onViewBookmark: (bookmarkId: string) => void
+  onToggleBookmark: (r: PlaceSearchResult, existingBookmarkId: string | null) => void
+}) {
+  function openDetail() {
+    if (ranked) return onViewPlace(ranked.id)
+    if (bookmark) return onViewBookmark(bookmark.id)
+    return onPreview(result)
+  }
+
+  return (
+    <div className="flex items-center gap-2.5 rounded-lg px-2 py-2.5 hover:bg-muted">
+      <button
+        type="button"
+        onClick={openDetail}
+        className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+      >
+        <PinIcon className="h-4 w-4 shrink-0 opacity-45" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-extrabold">{result.name}</span>
+          <span className="block truncate text-xs font-bold opacity-60">{result.location}</span>
+        </span>
+      </button>
+      <span className="flex shrink-0 flex-col items-end gap-1">
+        {ranked ? (
+          <span
+            className={`flex h-7 w-7 items-center justify-center rounded-full border-2 ${TIER_BADGE_TINT[ranked.tier]}`}
+          >
+            <TierIcon tier={ranked.tier} className="h-3.5 w-3.5" />
+          </span>
+        ) : (
+          <span className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => onSelect(result)}
+              aria-label="Rank it"
+              className="brutal-xs flex h-7 w-7 items-center justify-center bg-card"
+            >
+              <PlusIcon className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              disabled={bookmarkPending === result.id}
+              onClick={() => onToggleBookmark(result, bookmark?.id ?? null)}
+              aria-label={bookmark ? 'Remove bookmark' : 'Bookmark for later'}
+              className={`brutal-xs flex h-7 w-7 items-center justify-center bg-card disabled:opacity-40 ${bookmark ? 'text-accent' : ''}`}
+            >
+              <BookmarkIcon filled={!!bookmark} className="h-3.5 w-3.5" />
+            </button>
+          </span>
+        )}
+        {dist && !ranked && <span className="text-[10px] font-bold opacity-55">{dist} mi</span>}
+      </span>
+    </div>
+  )
+}
+
+function ResultRowSkeleton() {
+  return (
+    <div className="flex items-center gap-2.5 px-2 py-2.5">
+      <div className="skeleton h-4 w-4 shrink-0 rounded-full" />
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <div className="skeleton h-3.5 w-2/3" />
+        <div className="skeleton h-3 w-1/3" />
+      </div>
+      <div className="skeleton h-7 w-7 shrink-0 rounded-full" />
+    </div>
+  )
+}
+
+/** A lightweight "detail view" for a search result that isn't ranked or bookmarked yet - there's
+ *  no persisted place to route to, so this lives as a sheet step instead of a real page. Tapping
+ *  a row always lands here first; "Review It" here (or the row's own quick "+") is what hands
+ *  the candidate off to the review overlay. */
+function PreviewStep({
+  result,
+  bookmark,
+  bookmarkPending,
+  onToggleBookmark,
+  onReview,
+  onChange,
+}: {
+  result: PlaceSearchResult
+  bookmark: Bookmark | null
+  bookmarkPending: boolean
+  onToggleBookmark: (existingBookmarkId: string | null) => void
+  onReview: () => void
+  onChange: () => void
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <SheetTitle className="sr-only">{result.name}</SheetTitle>
+      <PlaceDetailHeader onBack={onChange} backLabel="Back to search" insetTop={false} />
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <UnreviewedPlaceDetail
+          place={result}
+          bookmarked={!!bookmark}
+          bookmarkPending={bookmarkPending}
+          onToggleBookmark={() => onToggleBookmark(bookmark?.id ?? null)}
+          onReview={onReview}
+        />
+      </div>
+    </div>
   )
 }
 
@@ -737,182 +795,6 @@ function AddressField({
           ))}
         </div>
       )}
-    </div>
-  )
-}
-
-const TIER_STYLE: Record<Tier, string> = {
-  liked: 'bg-tier-liked text-tier-liked-foreground',
-  okay: 'bg-tier-okay text-tier-okay-foreground',
-  nope: 'bg-tier-nope text-tier-nope-foreground',
-}
-const TIER_HINT: Record<Tier, string> = {
-  liked: 'would happily order again',
-  okay: 'fine, nothing special',
-  nope: 'probably skip next time',
-}
-
-function TierStep({
-  candidate,
-  onPick,
-  onChange,
-  onClose,
-  disabled,
-  error,
-}: {
-  candidate: Candidate
-  onPick: (tier: Tier) => void
-  onChange: () => void
-  onClose: () => void
-  disabled: boolean
-  error: string | null
-}) {
-  return (
-    <>
-      <SelectedPlaceHeader candidate={candidate} onChange={onChange} onClose={onClose} />
-      <SheetTitle className="mb-1 text-lg">How was it?</SheetTitle>
-      <SheetDescription className="mb-4">
-        Pick the group it belongs in - you'll fine-tune the exact rank next.
-      </SheetDescription>
-      {error && <p className="mb-3 text-sm font-bold text-destructive">{error}</p>}
-      <div className="flex flex-col gap-3">
-        {(['liked', 'okay', 'nope'] as Tier[]).map((t) => (
-          <Button
-            key={t}
-            type="button"
-            variant="ghost"
-            disabled={disabled}
-            onClick={() => onPick(t)}
-            className={`brutal-sm flex h-auto items-center justify-start gap-3 border-0 px-4 py-3 text-left hover:opacity-90 ${TIER_STYLE[t]}`}
-          >
-            <span className="brutal-xs flex h-8 w-8 shrink-0 items-center justify-center bg-card text-foreground">
-              <TierIcon tier={t} className="h-4 w-4" />
-            </span>
-            <span className="leading-tight">
-              <span className="block font-display font-bold">{TIER_LABEL[t]}</span>
-              <span className="text-xs font-normal opacity-80">{TIER_HINT[t]}</span>
-            </span>
-          </Button>
-        ))}
-      </div>
-    </>
-  )
-}
-
-function CompareStep({
-  candidate,
-  tier,
-  existing,
-  compareState,
-  round,
-  canUndo,
-  onChoice,
-  onUndo,
-  onChange,
-  onClose,
-  disabled,
-  error,
-}: {
-  candidate: Candidate
-  tier: Tier
-  existing: PlaceWithScore[]
-  compareState: ComparisonState
-  round: number
-  canUndo: boolean
-  onChoice: (outcome: ComparisonOutcome) => void
-  onUndo: () => void
-  onChange: () => void
-  onClose: () => void
-  disabled: boolean
-  error: string | null
-}) {
-  const mid = compareIndex(compareState)
-  const against = mid !== null ? existing[mid] : null
-  const totalRounds = Math.max(estimatedRounds(existing.length), 1)
-
-  if (!against) return null
-
-  return (
-    <>
-      <SelectedPlaceHeader candidate={candidate} onChange={onChange} onClose={onClose} />
-      <SheetTitle className="mb-1 text-center text-xl">Which do you prefer?</SheetTitle>
-      <SheetDescription className="eyebrow mb-5 text-center text-xs">
-        Comparing within {TIER_LABEL[tier]} · round {round} of ~{totalRounds}
-      </SheetDescription>
-      {error && <p className="mb-3 text-center text-sm font-bold text-destructive">{error}</p>}
-      <div className="mb-3 flex items-stretch gap-2">
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => onChoice('new')}
-          className="brutal-sm flex-1 border-0 bg-background p-3 text-center hover:bg-background/80 disabled:opacity-50"
-        >
-          <p className="eyebrow brutal-xs mx-auto mb-2 inline-block bg-secondary px-2 py-0.5 text-[10px]">
-            NEW
-          </p>
-          <p className="font-display text-base font-extrabold">{candidate.name}</p>
-          {candidate.location && (
-            <p className="mt-1 text-xs font-bold opacity-60">{candidate.location}</p>
-          )}
-        </button>
-        <div className="flex items-center font-display text-sm font-bold opacity-60">or</div>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => onChoice('existing')}
-          className="brutal-sm flex-1 border-0 bg-background p-3 text-center hover:bg-background/80 disabled:opacity-50"
-        >
-          <p className="eyebrow brutal-xs mx-auto mb-2 inline-block bg-muted px-2 py-0.5 text-[10px]">
-            #{mid! + 1} IN TIER
-          </p>
-          <p className="font-display text-base font-extrabold">{against.name}</p>
-          {against.location && (
-            <p className="mt-1 text-xs font-bold opacity-60">{against.location}</p>
-          )}
-        </button>
-      </div>
-      <div className="flex items-center justify-between text-xs font-bold">
-        <button
-          type="button"
-          disabled={disabled || !canUndo}
-          onClick={onUndo}
-          className="text-accent disabled:opacity-30"
-        >
-          ↶ Undo
-        </button>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => onChoice('tie')}
-          className="brutal-xs bg-card px-3 py-1.5 opacity-70 disabled:opacity-30"
-        >
-          Too tough
-        </button>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => onChoice('tie')}
-          className="text-accent disabled:opacity-30"
-        >
-          Skip ↷
-        </button>
-      </div>
-    </>
-  )
-}
-
-function SavedStep({ candidate, info }: { candidate: Candidate; info: SavedInfo }) {
-  return (
-    <div className="flex flex-col items-center py-6 text-center">
-      <span
-        className={`brutal-sm mb-3 flex h-12 w-12 items-center justify-center ${TIER_STYLE[info.tier]}`}
-      >
-        <TierIcon tier={info.tier} className="h-6 w-6" />
-      </span>
-      <SheetTitle className="mb-1">Saved!</SheetTitle>
-      <SheetDescription>
-        {candidate.name} · #{info.rank} in {TIER_LABEL[info.tier]} · Score {info.score.toFixed(1)}
-      </SheetDescription>
     </div>
   )
 }

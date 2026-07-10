@@ -1,12 +1,11 @@
 import { AppTileLayer } from '@/components/map-controls'
-import type { Bookmark } from '@/lib/bookmarks'
 import { coordinateFor } from '@/lib/geo'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useMemo } from 'react'
 import { MapContainer, Marker } from 'react-leaflet'
 
-const bookmarkPinIcon = L.divIcon({
+const pinIcon = L.divIcon({
   className: '',
   html: `
     <div style="display:flex;flex-direction:column;align-items:center;transform:translateY(-8px)">
@@ -24,19 +23,20 @@ const bookmarkPinIcon = L.divIcon({
   iconAnchor: [25, 58],
 })
 
-export interface BookmarkHeroMapProps {
-  bookmark: Bookmark
+export interface PinHeroMapProps {
+  place: { id: string; lat: number | null; lng: number | null }
   className?: string
 }
 
-/** Single-pin map used as the bookmark detail page's hero - mirrors PlaceHeroMap but with the
- *  bookmark ribbon icon instead of a score badge, since bookmarks have no ranking yet. */
-export function BookmarkHeroMap({ bookmark, className }: BookmarkHeroMapProps) {
-  const coord = useMemo(() => coordinateFor(bookmark), [bookmark])
+/** Single-pin map used as the hero for any not-yet-reviewed place (a bookmark, or a bare search
+ *  result being previewed) - mirrors PlaceHeroMap but with a ribbon pin instead of a score
+ *  badge, since there's no ranking yet. */
+export function PinHeroMap({ place, className }: PinHeroMapProps) {
+  const coord = useMemo(() => coordinateFor(place), [place])
 
   return (
     <MapContainer
-      key={bookmark.id}
+      key={place.id}
       center={[coord.lat, coord.lng]}
       zoom={14}
       scrollWheelZoom={false}
@@ -45,7 +45,7 @@ export function BookmarkHeroMap({ bookmark, className }: BookmarkHeroMapProps) {
       className={className}
     >
       <AppTileLayer />
-      <Marker position={[coord.lat, coord.lng]} icon={bookmarkPinIcon} />
+      <Marker position={[coord.lat, coord.lng]} icon={pinIcon} />
     </MapContainer>
   )
 }

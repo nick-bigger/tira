@@ -60,6 +60,19 @@ export function ensureSchema(): Promise<void> {
           )
         `,
           ),
+          db.execute(
+            `
+          CREATE TABLE IF NOT EXISTS recent_views (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            location TEXT,
+            lat REAL,
+            lng REAL,
+            place_id TEXT,
+            viewed_at TEXT NOT NULL DEFAULT (datetime('now'))
+          )
+        `,
+          ),
         ]),
       )
       .then(() => undefined)

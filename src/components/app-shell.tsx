@@ -1,5 +1,6 @@
 import { AddPlaceOverlay, type Candidate } from '@/components/add-place-overlay'
 import { BOTTOM_NAV_CLEARANCE, BottomNav } from '@/components/bottom-nav'
+import { ReviewSheet } from '@/components/review-sheet'
 import type { Tier } from '@/components/tier-icon'
 import { AppDataContext } from '@/lib/app-data'
 import type { Bookmark } from '@/lib/bookmarks'
@@ -8,8 +9,9 @@ import { Outlet, useRouter, useRouterState } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 
 /** Root-level shell rendered for every route: owns the shared byTier/bookmarks data, the
- *  persistent bottom nav, and the single AddPlaceOverlay instance shared by the home search
- *  bar, the nav's center button, and "Rank it" on a bookmark. */
+ *  persistent bottom nav, the single AddPlaceOverlay instance shared by the home search bar
+ *  and the nav's center button, and the single ReviewSheet instance used to rank a new place
+ *  from wherever it was picked. */
 export function AppShell({
   byTier,
   bookmarks,
@@ -20,7 +22,8 @@ export function AppShell({
   const router = useRouter()
   const search = useRouterState({ select: (s) => s.location.search as Record<string, unknown> })
   const [addOpen, setAddOpen] = useState(false)
-  const [candidate, setCandidate] = useState<Candidate | null>(null)
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [reviewCandidate, setReviewCandidate] = useState<Candidate | null>(null)
 
   useEffect(() => {
     if (search.add === true || search.add === 'true') setAddOpen(true)
@@ -28,15 +31,27 @@ export function AppShell({
 
   function handleAddOpenChange(next: boolean) {
     setAddOpen(next)
-    if (!next) {
-      setCandidate(null)
-      if (search.add) void router.navigate({ to: '/', search: {}, replace: true })
+    if (!next && search.add) {
+      void router.navigate({ to: '/', search: {}, replace: true })
     }
   }
 
-  function openAdd(initial?: Candidate) {
-    setCandidate(initial ?? null)
+  function openAdd() {
     setAddOpen(true)
+  }
+
+  function handleReviewOpenChange(next: boolean) {
+    setReviewOpen(next)
+    if (!next) {
+      // Wait for the close transition to finish before clearing, so the sheet doesn't flash
+      // back to the tier step while it's still animating out.
+      setTimeout(() => setReviewCandidate(null), 250)
+    }
+  }
+
+  function openReview(next: Candidate) {
+    setReviewCandidate(next)
+    setReviewOpen(true)
   }
 
   async function refresh() {
@@ -44,7 +59,7 @@ export function AppShell({
   }
 
   return (
-    <AppDataContext.Provider value={{ byTier, bookmarks, refresh, openAdd }}>
+    <AppDataContext.Provider value={{ byTier, bookmarks, refresh, openAdd, openReview }}>
       <div style={{ paddingBottom: BOTTOM_NAV_CLEARANCE }}>
         <Outlet />
       </div>
@@ -55,7 +70,14 @@ export function AppShell({
         byTier={byTier}
         bookmarks={bookmarks}
         onDataChanged={refresh}
-        initialCandidate={candidate}
+        onReviewCandidate={openReview}
+      />
+      <ReviewSheet
+        open={reviewOpen}
+        onOpenChange={handleReviewOpenChange}
+        candidate={reviewCandidate}
+        byTier={byTier}
+        onSaved={refresh}
       />
     </AppDataContext.Provider>
   )

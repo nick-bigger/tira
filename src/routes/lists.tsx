@@ -22,14 +22,14 @@ type Mode = 'been' | 'want-to-try'
 type View = 'list' | 'map'
 
 function ListsPage() {
-  const { byTier, bookmarks, refresh, openAdd } = useAppData()
+  const { byTier, bookmarks, refresh, openAdd, openReview } = useAppData()
   const allPlaces = TIER_ORDER.flatMap((t) => byTier[t])
   const [mode, setMode] = useState<Mode>('been')
   const [view, setView] = useState<View>('list')
   const [removingId, setRemovingId] = useState<string | null>(null)
 
   function handleRank(bookmark: Bookmark) {
-    openAdd({
+    openReview({
       name: bookmark.name,
       location: bookmark.location ?? '',
       lat: bookmark.lat ?? undefined,
