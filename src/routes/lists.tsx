@@ -9,7 +9,7 @@ import { TiraMark } from '@/components/tira-mark'
 import { Button } from '@/components/ui/button'
 import { useAppData } from '@/lib/app-data'
 import { deleteBookmark, type Bookmark } from '@/lib/bookmarks'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useState } from 'react'
 
 export const Route = createFileRoute('/lists')({
@@ -22,7 +22,7 @@ type Mode = 'been' | 'want-to-try'
 type View = 'list' | 'map'
 
 function ListsPage() {
-  const { byTier, bookmarks, refresh, openAdd, openReview } = useAppData()
+  const { byTier, bookmarks, refresh, openReview } = useAppData()
   const allPlaces = TIER_ORDER.flatMap((t) => byTier[t])
   const [mode, setMode] = useState<Mode>('been')
   const [view, setView] = useState<View>('list')
@@ -86,9 +86,9 @@ function ListsPage() {
         </div>
       </header>
 
-      <main className="relative mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
+      <main className="relative mx-auto max-w-5xl px-4 pt-4 pb-6 sm:px-6 sm:pt-6 sm:pb-10">
         {!hasContent ? (
-          <EmptyState mode={mode} onAdd={() => openAdd()} />
+          <EmptyState mode={mode} />
         ) : (
           <>
             {mode === 'been' &&
@@ -137,7 +137,7 @@ function ListsPage() {
   )
 }
 
-function EmptyState({ mode, onAdd }: { mode: Mode; onAdd: () => void }) {
+function EmptyState({ mode }: { mode: Mode }) {
   return (
     <div className="brutal mx-auto mt-6 max-w-md bg-card p-8 text-center sm:mt-16 sm:p-10">
       <TiraMark className="mx-auto mb-3 h-10 w-10" />
@@ -150,10 +150,12 @@ function EmptyState({ mode, onAdd }: { mode: Mode; onAdd: () => void }) {
           : 'Bookmark a place from search to try it later.'}
       </p>
       <Button
+        asChild
         className="brutal-sm h-auto border-0 bg-primary py-2.5 font-display font-bold text-primary-foreground"
-        onClick={onAdd}
       >
-        + Add place
+        <Link to="/add" className="no-underline">
+          + Add place
+        </Link>
       </Button>
     </div>
   )

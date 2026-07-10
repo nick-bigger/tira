@@ -7,10 +7,11 @@ const NAV_ITEM_CLASS =
 /** Persistent bottom tab bar - Home, a center Search/add button, and Your Lists. Total
  *  footprint (row height + safe-area) is mirrored by AppShell's content padding and by any
  *  corner-pinned controls elsewhere so nothing sits underneath it. */
-export function BottomNav({ onSearchClick }: { onSearchClick: () => void }) {
+export function BottomNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const isHome = pathname === '/'
   const isLists = pathname.startsWith('/lists')
+  const isAdd = pathname.startsWith('/add')
 
   return (
     <nav
@@ -26,17 +27,16 @@ export function BottomNav({ onSearchClick }: { onSearchClick: () => void }) {
           Home
         </Link>
 
-        <button
-          type="button"
-          onClick={onSearchClick}
+        <Link
+          to="/add"
           aria-label="Search or add a place"
-          className={`${NAV_ITEM_CLASS} text-muted-foreground`}
+          className={`${NAV_ITEM_CLASS} ${isAdd ? 'text-accent' : 'text-muted-foreground'}`}
         >
           <span className="brutal-xs flex h-8 w-8 items-center justify-center rounded-full bg-accent text-accent-foreground">
             <PlusIcon className="h-4 w-4" />
           </span>
           Search
-        </button>
+        </Link>
 
         <Link
           to="/lists"

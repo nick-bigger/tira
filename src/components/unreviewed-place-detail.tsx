@@ -43,10 +43,16 @@ export function UnreviewedPlaceDetail({
         </div>
 
         <div className="relative -mt-7 rounded-t-2xl border-t-[3px] border-border bg-card px-4 pt-5 sm:mt-0 sm:rounded-none sm:border-t-0 sm:bg-transparent sm:px-0 sm:pt-0">
-          <span className="eyebrow brutal-xs inline-flex items-center gap-1.5 bg-accent px-2 py-1 text-[10px] text-accent-foreground">
-            Want to Try
-          </span>
-          <h1 className="mt-2 font-display text-2xl font-bold text-balance">{place.name}</h1>
+          {bookmarked && (
+            <span className="eyebrow brutal-xs inline-flex items-center gap-1.5 bg-accent px-2 py-1 text-[10px] text-accent-foreground">
+              Want to Try
+            </span>
+          )}
+          <h1
+            className={`font-display text-2xl font-bold text-balance ${bookmarked ? 'mt-2' : ''}`}
+          >
+            {place.name}
+          </h1>
           {place.location && (
             <p className="mt-1 flex items-center gap-1 text-sm font-bold opacity-60">
               <PinIcon className="h-3.5 w-3.5 shrink-0" />

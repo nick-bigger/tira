@@ -5,14 +5,8 @@ import { PlaceDetailHeader } from '@/components/place-detail-header'
 import { TierIcon, type Tier } from '@/components/tier-icon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetTitle,
-} from '@/components/ui/sheet'
 import { UnreviewedPlaceDetail } from '@/components/unreviewed-place-detail'
+import { useAppData } from '@/lib/app-data'
 import { createBookmark, deleteBookmark, type Bookmark } from '@/lib/bookmarks'
 import { coordinateFor, haversineDistanceMi, type LatLng } from '@/lib/geo'
 import {
@@ -61,26 +55,12 @@ function isSameSpot(
   )
 }
 
-export interface AddPlaceOverlayProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  byTier: Record<Tier, PlaceWithScore[]>
-  bookmarks: Bookmark[]
-  /** Called after a bookmark is created/removed - refreshes the loader data. */
-  onDataChanged: () => void | Promise<void>
-  /** Called once a candidate is picked (search result, recent, or manual entry) - opens the
-   *  review flow as its own overlay stacked on top of this one, via AppShell's openReview. */
-  onReviewCandidate: (candidate: Candidate) => void
-}
-
-export function AddPlaceOverlay({
-  open,
-  onOpenChange,
-  byTier,
-  bookmarks,
-  onDataChanged,
-  onReviewCandidate,
-}: AddPlaceOverlayProps) {
+/** /add - search for a place, add one manually, or jump back into a recent. Not a sheet/modal -
+ *  a normal page like every other route, so it gets the persistent bottom nav and real back
+ *  history like everywhere else. Picking a candidate opens the tier/compare review flow as its
+ *  own overlay on top of this page, via AppShell's openReview. */
+export function AddPlacePage() {
+  const { byTier, bookmarks, refresh, openReview } = useAppData()
   const { position, error: geoError, locate } = useGeolocation()
   const navigate = useNavigate()
   const allPlaces = [...byTier.liked, ...byTier.okay, ...byTier.nope]
@@ -105,41 +85,19 @@ export function AddPlaceOverlay({
   const { results, loading, error } = useDebouncedPlaceSearch(nearReady ? query : '', searchNear)
 
   useEffect(() => {
-    if (open) locate()
+    locate()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  }, [])
 
   useEffect(() => {
-    if (open) void listRecentViews().then(setRecentViews)
-  }, [open])
-
-  // Reset after the close transition finishes so the sheet doesn't flash back
-  // to "search" while it's still animating out.
-  useEffect(() => {
-    if (open) return
-    const t = setTimeout(() => {
-      setStep('search')
-      setQuery('')
-      setManualName('')
-      setManualLocation('')
-      setManualCoord(null)
-      setLocationOverride(null)
-      setPreviewResult(null)
-    }, 250)
-    return () => clearTimeout(t)
-  }, [open])
+    void listRecentViews().then(setRecentViews)
+  }, [])
 
   // Tapping a row opens its detail view; the quick "+" button on the row (and "Review It" on
   // the detail view itself) both hand the candidate off to the review overlay.
   function selectResult(r: PlaceSearchResult) {
     void recordRecentView({ name: r.name, location: r.location, lat: r.lat, lng: r.lng })
-    onReviewCandidate({
-      name: r.name,
-      location: r.location,
-      lat: r.lat,
-      lng: r.lng,
-      isManual: false,
-    })
+    openReview({ name: r.name, location: r.location, lat: r.lat, lng: r.lng, isManual: false })
   }
 
   function openPreview(r: PlaceSearchResult) {
@@ -153,7 +111,6 @@ export function AddPlaceOverlay({
   }
 
   function viewRankedPlace(placeId: string) {
-    onOpenChange(false)
     void navigate({ to: '/place/$id', params: { id: placeId } })
     const place = allPlaces.find((p) => p.id === placeId)
     if (place) {
@@ -168,7 +125,6 @@ export function AddPlaceOverlay({
   }
 
   function viewBookmarkedPlace(bookmarkId: string) {
-    onOpenChange(false)
     void navigate({ to: '/bookmark/$id', params: { id: bookmarkId } })
     const bm = bookmarks.find((b) => b.id === bookmarkId)
     if (bm) {
@@ -184,7 +140,7 @@ export function AddPlaceOverlay({
       } else {
         await createBookmark({ name: r.name, location: r.location, lat: r.lat, lng: r.lng })
       }
-      await onDataChanged()
+      await refresh()
     } finally {
       setBookmarkPending(null)
     }
@@ -193,7 +149,7 @@ export function AddPlaceOverlay({
   function handleManualSubmit(e: FormEvent) {
     e.preventDefault()
     if (!manualName.trim()) return
-    onReviewCandidate({
+    openReview({
       name: manualName.trim(),
       location: manualLocation.trim(),
       lat: manualCoord?.lat,
@@ -207,81 +163,91 @@ export function AddPlaceOverlay({
     setStep('search')
   }
 
-  function handleClose() {
-    onOpenChange(false)
+  // Not a sheet, so there's no built-in open/close transition - play the exit animation
+  // ourselves and hold the navigation until it's finished.
+  const [closing, setClosing] = useState(false)
+
+  function closeToLists() {
+    setClosing(true)
+    setTimeout(() => navigate({ to: '/lists' }), 200)
   }
 
+  const pageAnimation = closing
+    ? 'animate-out fade-out slide-out-to-bottom-4 duration-200'
+    : 'animate-in fade-in slide-in-from-bottom-4 duration-300'
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent fullScreen>
-        {step === 'search' && (
-          <SearchStep
-            query={query}
-            onQueryChange={setQuery}
-            results={results}
-            loading={loading}
-            error={error}
-            nearReady={nearReady}
-            geoError={locationOverride ? null : geoError}
-            distanceFrom={locationOverride ? null : position}
-            location={locationOverride}
-            onLocationChange={setLocationOverride}
-            places={allPlaces}
-            bookmarks={bookmarks}
-            recentViews={recentViews}
-            bookmarkPending={bookmarkPending}
-            onSelect={selectResult}
-            onPreview={openPreview}
-            onViewPlace={viewRankedPlace}
-            onViewBookmark={viewBookmarkedPlace}
-            onToggleBookmark={toggleBookmark}
-            onManual={() => setStep('manual')}
-            onClose={handleClose}
-          />
-        )}
-        {step === 'manual' && (
-          <ManualStep
-            name={manualName}
-            location={manualLocation}
-            onNameChange={setManualName}
-            onLocationChange={(loc, coord) => {
-              setManualLocation(loc)
-              setManualCoord(coord)
-            }}
-            onSubmit={handleManualSubmit}
-            onBack={() => setStep('search')}
-            onClose={handleClose}
-          />
-        )}
-        {step === 'preview' && previewResult && (
-          <PreviewStep
-            result={previewResult}
-            bookmark={bookmarks.find((b) => isSameSpot(b, previewResult)) ?? null}
-            bookmarkPending={bookmarkPending === previewResult.id}
-            onToggleBookmark={(existingBookmarkId: string | null) =>
-              toggleBookmark(previewResult, existingBookmarkId)
-            }
-            onReview={confirmReview}
-            onChange={resetToSearch}
-          />
-        )}
-      </SheetContent>
-    </Sheet>
+    <div className={pageAnimation}>
+      {step === 'preview' && previewResult ? (
+        <PreviewStep
+          result={previewResult}
+          bookmark={bookmarks.find((b) => isSameSpot(b, previewResult)) ?? null}
+          bookmarkPending={bookmarkPending === previewResult.id}
+          onToggleBookmark={(existingBookmarkId: string | null) =>
+            toggleBookmark(previewResult, existingBookmarkId)
+          }
+          onReview={confirmReview}
+          onChange={resetToSearch}
+        />
+      ) : step === 'manual' ? (
+        <ManualStep
+          name={manualName}
+          location={manualLocation}
+          onNameChange={setManualName}
+          onLocationChange={(loc, coord) => {
+            setManualLocation(loc)
+            setManualCoord(coord)
+          }}
+          onSubmit={handleManualSubmit}
+          onBack={() => setStep('search')}
+          onClose={closeToLists}
+        />
+      ) : (
+        <SearchStep
+          query={query}
+          onQueryChange={setQuery}
+          results={results}
+          loading={loading}
+          error={error}
+          nearReady={nearReady}
+          geoError={locationOverride ? null : geoError}
+          distanceFrom={locationOverride ? null : position}
+          location={locationOverride}
+          onLocationChange={setLocationOverride}
+          places={allPlaces}
+          bookmarks={bookmarks}
+          recentViews={recentViews}
+          bookmarkPending={bookmarkPending}
+          onSelect={selectResult}
+          onPreview={openPreview}
+          onViewPlace={viewRankedPlace}
+          onViewBookmark={viewBookmarkedPlace}
+          onToggleBookmark={toggleBookmark}
+          onManual={() => setStep('manual')}
+          onClose={closeToLists}
+        />
+      )}
+    </div>
   )
 }
 
-function CloseButton({ onClose }: { onClose: () => void }) {
+/** Sticky title-bar header shared by the search and manual-entry steps - matches the style of
+ *  the other top-level pages (Home, Your Lists). */
+function StepHeader({ title, onClose }: { title: string; onClose: () => void }) {
   return (
-    <SheetClose asChild>
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Close"
-        className="brutal-xs flex h-7 w-7 shrink-0 items-center justify-center bg-card text-sm font-bold"
-      >
-        ✕
-      </button>
-    </SheetClose>
+    <header className="sticky top-0 z-10 border-b-[3px] border-border bg-background">
+      <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 sm:px-6">
+        <span className="font-display text-2xl font-bold">{title}</span>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="brutal-xs flex h-8 w-8 items-center justify-center bg-card text-sm font-bold"
+        >
+          ✕
+        </button>
+      </div>
+    </header>
   )
 }
 
@@ -331,100 +297,96 @@ function SearchStep({
   onClose: () => void
 }) {
   return (
-    <>
-      <div className="mb-4 flex items-center justify-between">
-        <SheetTitle>Add a place</SheetTitle>
-        <CloseButton onClose={onClose} />
-      </div>
-      <SheetDescription className="sr-only">
-        Search for a place to add and rank it against ones you've already tried.
-      </SheetDescription>
-      <div className="relative mb-2.5 shrink-0">
-        <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 opacity-55" />
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          placeholder="Search any place - cafés, bakeries, Costco..."
-          className="brutal-flat w-full bg-background py-2.5 pr-3 pl-8 text-base font-bold text-foreground placeholder:text-muted-foreground placeholder:opacity-60 focus:shadow-[3px_3px_0px_var(--border)] focus:outline-none md:text-sm"
-        />
-      </div>
-      <LocationField value={location} onChange={onLocationChange} />
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {!nearReady && !geoError && (
-          <p className="px-1 py-6 text-center text-sm font-bold opacity-50">
-            Finding your location...
-          </p>
-        )}
-        {!nearReady && geoError && (
-          <p className="px-1 py-6 text-center text-sm font-bold opacity-60">
-            Couldn't get your location - search a city above to continue.
-          </p>
-        )}
-        {nearReady && !query.trim() && (
-          <RecentlyViewed
-            recentViews={recentViews}
-            places={places}
-            bookmarks={bookmarks}
-            distanceFrom={distanceFrom}
-            bookmarkPending={bookmarkPending}
-            onSelect={onSelect}
-            onPreview={onPreview}
-            onViewPlace={onViewPlace}
-            onViewBookmark={onViewBookmark}
-            onToggleBookmark={onToggleBookmark}
+    <div className="min-h-svh pb-12">
+      <StepHeader title="Add a place" onClose={onClose} />
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
+        <div className="relative mb-2.5">
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 opacity-55" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => onQueryChange(e.target.value)}
+            placeholder="Search any place - cafés, bakeries, Costco..."
+            className="brutal-flat w-full bg-card py-2.5 pr-3 pl-8 text-base font-bold text-foreground placeholder:text-muted-foreground placeholder:opacity-60 focus:shadow-[3px_3px_0px_var(--border)] focus:outline-none md:text-sm"
           />
-        )}
-        {nearReady && loading && (
-          <div className="flex flex-col gap-1">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <ResultRowSkeleton key={i} />
-            ))}
-          </div>
-        )}
-        {nearReady && !loading && error && (
-          <p className="py-6 text-center text-sm font-bold text-destructive">{error}</p>
-        )}
-        {nearReady && !loading && !error && query.trim() && results.length === 0 && (
-          <p className="px-1 py-6 text-center text-sm font-bold opacity-60">
-            No matches nearby - try "add manually" below.
-          </p>
-        )}
-        {nearReady && !loading && !error && results.length > 0 && (
-          <div className="flex flex-col gap-1">
-            {results.map((r) => {
-              const ranked = places.find((p) => isSameSpot(p, r)) ?? null
-              const bookmark = ranked ? null : (bookmarks.find((b) => isSameSpot(b, r)) ?? null)
-              const dist = distanceFrom
-                ? haversineDistanceMi(distanceFrom, { lat: r.lat, lng: r.lng }).toFixed(1)
-                : null
-              return (
-                <ResultRow
-                  key={r.id}
-                  result={r}
-                  ranked={ranked}
-                  bookmark={bookmark}
-                  dist={dist}
-                  bookmarkPending={bookmarkPending}
-                  onSelect={onSelect}
-                  onPreview={onPreview}
-                  onViewPlace={onViewPlace}
-                  onViewBookmark={onViewBookmark}
-                  onToggleBookmark={onToggleBookmark}
-                />
-              )
-            })}
-          </div>
-        )}
+        </div>
+        <LocationField value={location} onChange={onLocationChange} />
+        <div>
+          {!nearReady && !geoError && (
+            <p className="px-1 py-6 text-center text-sm font-bold opacity-50">
+              Finding your location...
+            </p>
+          )}
+          {!nearReady && geoError && (
+            <p className="px-1 py-6 text-center text-sm font-bold opacity-60">
+              Couldn't get your location - search a city above to continue.
+            </p>
+          )}
+          {nearReady && !query.trim() && (
+            <RecentlyViewed
+              recentViews={recentViews}
+              places={places}
+              bookmarks={bookmarks}
+              distanceFrom={distanceFrom}
+              bookmarkPending={bookmarkPending}
+              onSelect={onSelect}
+              onPreview={onPreview}
+              onViewPlace={onViewPlace}
+              onViewBookmark={onViewBookmark}
+              onToggleBookmark={onToggleBookmark}
+            />
+          )}
+          {nearReady && loading && (
+            <div className="flex flex-col gap-1">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <ResultRowSkeleton key={i} />
+              ))}
+            </div>
+          )}
+          {nearReady && !loading && error && (
+            <p className="py-6 text-center text-sm font-bold text-destructive">{error}</p>
+          )}
+          {nearReady && !loading && !error && query.trim() && results.length === 0 && (
+            <p className="px-1 py-6 text-center text-sm font-bold opacity-60">
+              No matches nearby - try "add manually" below.
+            </p>
+          )}
+          {nearReady && !loading && !error && results.length > 0 && (
+            <div className="flex flex-col gap-1">
+              {results.map((r) => {
+                const ranked = places.find((p) => isSameSpot(p, r)) ?? null
+                const bookmark = ranked ? null : (bookmarks.find((b) => isSameSpot(b, r)) ?? null)
+                const dist = distanceFrom
+                  ? haversineDistanceMi(distanceFrom, { lat: r.lat, lng: r.lng }).toFixed(1)
+                  : null
+                return (
+                  <ResultRow
+                    key={r.id}
+                    result={r}
+                    ranked={ranked}
+                    bookmark={bookmark}
+                    dist={dist}
+                    bookmarkPending={bookmarkPending}
+                    onSelect={onSelect}
+                    onPreview={onPreview}
+                    onViewPlace={onViewPlace}
+                    onViewBookmark={onViewBookmark}
+                    onToggleBookmark={onToggleBookmark}
+                  />
+                )
+              })}
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onManual}
+          className="mt-3 w-full border-t-2 border-dashed border-muted pt-3 text-center text-sm font-bold text-accent"
+        >
+          Can't find it? Enter it manually →
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={onManual}
-        className="mt-3 shrink-0 border-t-2 border-dashed border-muted pt-3 text-center text-sm font-bold text-accent"
-      >
-        Can't find it? Enter it manually →
-      </button>
-    </>
+    </div>
   )
 }
 
@@ -590,9 +552,9 @@ function ResultRowSkeleton() {
 }
 
 /** A lightweight "detail view" for a search result that isn't ranked or bookmarked yet - there's
- *  no persisted place to route to, so this lives as a sheet step instead of a real page. Tapping
- *  a row always lands here first; "Review It" here (or the row's own quick "+") is what hands
- *  the candidate off to the review overlay. */
+ *  no persisted place to route to, so this is just another step of /add rather than its own URL.
+ *  Tapping a row always lands here first; "Review It" here (or the row's own quick "+") is what
+ *  hands the candidate off to the review overlay. */
 function PreviewStep({
   result,
   bookmark,
@@ -609,18 +571,15 @@ function PreviewStep({
   onChange: () => void
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <SheetTitle className="sr-only">{result.name}</SheetTitle>
-      <PlaceDetailHeader onBack={onChange} backLabel="Back to search" insetTop={false} />
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <UnreviewedPlaceDetail
-          place={result}
-          bookmarked={!!bookmark}
-          bookmarkPending={bookmarkPending}
-          onToggleBookmark={() => onToggleBookmark(bookmark?.id ?? null)}
-          onReview={onReview}
-        />
-      </div>
+    <div className="min-h-svh pb-12">
+      <PlaceDetailHeader onBack={onChange} backLabel="Back to search" />
+      <UnreviewedPlaceDetail
+        place={result}
+        bookmarked={!!bookmark}
+        bookmarkPending={bookmarkPending}
+        onToggleBookmark={() => onToggleBookmark(bookmark?.id ?? null)}
+        onReview={onReview}
+      />
     </div>
   )
 }
@@ -639,7 +598,7 @@ function LocationField({
   const label = value ? value.label : 'Current Location'
 
   return (
-    <div className="relative mb-3 shrink-0">
+    <div className="relative mb-4">
       <PinIcon className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 opacity-45" />
       <input
         type="text"
@@ -651,7 +610,7 @@ function LocationField({
         onBlur={() => setFocused(false)}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search a city"
-        className="brutal-flat w-full bg-background py-2.5 pr-3 pl-8 text-base font-bold text-foreground placeholder:text-muted-foreground placeholder:opacity-60 focus:shadow-[3px_3px_0px_var(--border)] focus:outline-none md:text-sm"
+        className="brutal-flat w-full bg-card py-2.5 pr-3 pl-8 text-base font-bold text-foreground placeholder:text-muted-foreground placeholder:opacity-60 focus:shadow-[3px_3px_0px_var(--border)] focus:outline-none md:text-sm"
       />
       {focused && (
         <div className="brutal-sm absolute top-full right-0 left-0 z-20 mt-1.5 max-h-48 overflow-y-auto bg-card p-1">
@@ -710,39 +669,41 @@ function ManualStep({
   onClose: () => void
 }) {
   return (
-    <>
-      <div className="mb-4 flex items-center justify-between">
-        <SheetTitle>Add manually</SheetTitle>
-        <CloseButton onClose={onClose} />
+    <div className="min-h-svh pb-12">
+      <StepHeader title="Add manually" onClose={onClose} />
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
+        <div className="mx-auto max-w-md">
+          <form onSubmit={onSubmit} className="flex flex-col gap-3">
+            <Field id="manual-name" label="Name">
+              <Input
+                id="manual-name"
+                autoFocus
+                required
+                value={name}
+                onChange={(e) => onNameChange(e.target.value)}
+                placeholder="Grandma's kitchen"
+                className={FIELD_INPUT_CLASS}
+              />
+            </Field>
+            <AddressField value={location} onChange={onLocationChange} />
+            <Button
+              type="submit"
+              disabled={!name.trim()}
+              className="brutal-sm mt-1 h-auto border-0 bg-primary py-2.5 font-display font-bold text-primary-foreground"
+            >
+              Next
+            </Button>
+            <button
+              type="button"
+              onClick={onBack}
+              className="text-center text-sm font-bold opacity-60"
+            >
+              ‹ Back to search
+            </button>
+          </form>
+        </div>
       </div>
-      <SheetDescription className="sr-only">
-        Enter a place's name and location by hand when it can't be found in search.
-      </SheetDescription>
-      <form onSubmit={onSubmit} className="flex flex-col gap-3">
-        <Field id="manual-name" label="Name">
-          <Input
-            id="manual-name"
-            autoFocus
-            required
-            value={name}
-            onChange={(e) => onNameChange(e.target.value)}
-            placeholder="Grandma's kitchen"
-            className={FIELD_INPUT_CLASS}
-          />
-        </Field>
-        <AddressField value={location} onChange={onLocationChange} />
-        <Button
-          type="submit"
-          disabled={!name.trim()}
-          className="brutal-sm mt-1 h-auto border-0 bg-primary py-2.5 font-display font-bold text-primary-foreground"
-        >
-          Next
-        </Button>
-        <button type="button" onClick={onBack} className="text-center text-sm font-bold opacity-60">
-          ‹ Back to search
-        </button>
-      </form>
-    </>
+    </div>
   )
 }
 

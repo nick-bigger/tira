@@ -81,7 +81,7 @@ export function BookmarkListView({
 
   return (
     <div>
-      <div className="mb-6 flex items-center gap-2">
+      <div className="mb-4 flex items-center gap-2">
         <div className="relative flex-1">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 opacity-55" />
           <input
@@ -89,7 +89,7 @@ export function BookmarkListView({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search places or locations..."
-            className="brutal-flat h-10 w-full bg-card py-2 pr-3 pl-8 text-base font-bold text-foreground placeholder:text-muted-foreground focus:shadow-[3px_3px_0px_var(--border)] focus:outline-none md:text-sm"
+            className="brutal-flat h-12 w-full bg-card py-3 pr-3 pl-8 text-base font-bold text-foreground placeholder:text-muted-foreground focus:shadow-[3px_3px_0px_var(--border)] focus:outline-none md:text-sm"
           />
         </div>
         <Popover open={sortOpen} onOpenChange={setSortOpen}>
@@ -97,7 +97,7 @@ export function BookmarkListView({
             <button
               type="button"
               aria-label="Sort bookmarks"
-              className="brutal-flat flex h-10 shrink-0 items-center gap-1.5 bg-card px-3 text-sm font-bold text-foreground"
+              className="brutal-flat flex h-12 shrink-0 items-center gap-1.5 bg-card px-3 text-sm font-bold text-foreground"
             >
               <SortIcon className="h-3.5 w-3.5" />
               {SORT_LABEL[displaySortBy]}

@@ -1,4 +1,4 @@
-import type { Candidate } from '@/components/add-place-overlay'
+import type { Candidate } from '@/components/add-place-page'
 import { TierIcon, type Tier } from '@/components/tier-icon'
 import { Button } from '@/components/ui/button'
 import {

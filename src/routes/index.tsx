@@ -9,21 +9,14 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { format } from 'date-fns'
 import type { ReactNode } from 'react'
 
-interface IndexSearch {
-  add?: true
-}
-
 export const Route = createFileRoute('/')({
   component: HomePage,
-  validateSearch: (search: Record<string, unknown>): IndexSearch => ({
-    add: search.add === true || search.add === 'true' ? true : undefined,
-  }),
 })
 
 const GREETING_NAMES = 'Nick & Natalie'
 
 function HomePage() {
-  const { byTier, bookmarks, openAdd } = useAppData()
+  const { byTier, bookmarks } = useAppData()
   const stats = computeHomeStats(byTier, bookmarks)
   const hasTried = stats.triedCount > 0
 
@@ -40,14 +33,13 @@ function HomePage() {
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => openAdd()}
-        className="brutal-xs mb-4 flex w-full items-center gap-2 bg-card px-3.5 py-3 text-left text-base font-bold text-muted-foreground md:text-sm"
+      <Link
+        to="/add"
+        className="brutal-xs mb-4 flex w-full items-center gap-2 bg-card px-3.5 py-3 text-left text-base font-bold text-muted-foreground no-underline md:text-sm"
       >
         <SearchIcon className="h-4 w-4 shrink-0 opacity-60" />
         Find a new tiramisu spot...
-      </button>
+      </Link>
 
       <div className="brutal-xs mb-5 flex items-center gap-3 bg-accent px-4 py-3 text-accent-foreground">
         <div className="flex shrink-0">
@@ -71,7 +63,7 @@ function HomePage() {
       </div>
 
       {!hasTried ? (
-        <EmptyHome onAdd={() => openAdd()} />
+        <EmptyHome />
       ) : (
         <>
           <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
@@ -188,7 +180,7 @@ function StatTile({
   )
 }
 
-function EmptyHome({ onAdd }: { onAdd: () => void }) {
+function EmptyHome() {
   return (
     <div className="brutal mx-auto mt-4 max-w-md bg-card p-8 text-center">
       <TiraMark className="mx-auto mb-3 h-10 w-10" />
@@ -197,10 +189,12 @@ function EmptyHome({ onAdd }: { onAdd: () => void }) {
         Add the first place you've tried together to start your rankings.
       </p>
       <Button
+        asChild
         className="brutal-sm h-auto border-0 bg-primary py-2.5 font-display font-bold text-primary-foreground"
-        onClick={onAdd}
       >
-        + Add place
+        <Link to="/add" className="no-underline">
+          + Add place
+        </Link>
       </Button>
     </div>
   )
