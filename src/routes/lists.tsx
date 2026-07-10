@@ -9,24 +9,38 @@ import { TiraMark } from '@/components/tira-mark'
 import { Button } from '@/components/ui/button'
 import { useAppData } from '@/lib/app-data'
 import { deleteBookmark, type Bookmark } from '@/lib/bookmarks'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
+
+type Mode = 'been' | 'want-to-try'
+
+interface ListsSearch {
+  mode?: Mode
+}
 
 export const Route = createFileRoute('/lists')({
   component: ListsPage,
+  validateSearch: (search: Record<string, unknown>): ListsSearch => ({
+    mode: search.mode === 'want-to-try' ? 'want-to-try' : undefined,
+  }),
 })
 
 const TIER_ORDER: Tier[] = ['liked', 'okay', 'nope']
 
-type Mode = 'been' | 'want-to-try'
 type View = 'list' | 'map'
 
 function ListsPage() {
   const { byTier, bookmarks, refresh, openReview } = useAppData()
+  const { mode: modeSearch } = Route.useSearch()
+  const navigate = useNavigate()
   const allPlaces = TIER_ORDER.flatMap((t) => byTier[t])
-  const [mode, setMode] = useState<Mode>('been')
+  const mode: Mode = modeSearch ?? 'been'
   const [view, setView] = useState<View>('list')
   const [removingId, setRemovingId] = useState<string | null>(null)
+
+  function setMode(next: Mode) {
+    void navigate({ to: '/lists', search: next === 'been' ? {} : { mode: next }, replace: true })
+  }
 
   function handleRank(bookmark: Bookmark) {
     openReview({

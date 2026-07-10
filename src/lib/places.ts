@@ -147,6 +147,14 @@ export async function updatePlaceNotes(id: string, notes: string): Promise<void>
   })
 }
 
+export async function updatePlaceVisitedDate(id: string, visitedDate: string): Promise<void> {
+  await ensureSchema()
+  await db.execute({
+    sql: 'UPDATE places SET visited_date = ? WHERE id = ?',
+    args: [visitedDate || null, id],
+  })
+}
+
 /**
  * Moves an existing place to a new tier/position - used by the "Rank Again" flow, which
  * re-runs the pairwise comparison against every other place in the chosen tier (this place

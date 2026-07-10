@@ -72,18 +72,21 @@ function HomePage() {
               tint="bg-[#fdeecf]"
               value={stats.triedCount}
               label="Tiramisus tried"
+              linkSearch={{}}
             />
             <StatTile
               icon={<HeartIcon filled className="h-4 w-4 text-[#d97a9c]" />}
               tint="bg-[#fbe4ea]"
               value={stats.favoritesCount}
               label="Favorites"
+              linkSearch={{}}
             />
             <StatTile
               icon={<BookmarkIcon className="h-4 w-4 text-tier-liked" />}
               tint="bg-[#e7f0e2]"
               value={stats.wantToTryCount}
               label="Want to try"
+              linkSearch={{ mode: 'want-to-try' }}
             />
             <StatTile
               icon={<ClockIcon className="h-4 w-4" />}
@@ -161,14 +164,17 @@ function StatTile({
   tint,
   value,
   label,
+  linkSearch,
 }: {
   icon: ReactNode
   tint: string
   value: number | string
   label: string
+  /** Present -> the tile links to /lists (empty = Been tab, { mode: 'want-to-try' } for that tab). */
+  linkSearch?: { mode?: 'want-to-try' }
 }) {
-  return (
-    <div className="brutal-xs flex flex-col gap-1 bg-card p-3">
+  const content = (
+    <>
       <span
         className={`mb-0.5 flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border ${tint}`}
       >
@@ -176,7 +182,21 @@ function StatTile({
       </span>
       <span className="font-display text-2xl leading-none font-bold">{value}</span>
       <span className="text-[0.68rem] font-bold text-muted-foreground">{label}</span>
-    </div>
+    </>
+  )
+
+  if (!linkSearch) {
+    return <div className="brutal-xs flex flex-col gap-1 bg-card p-3">{content}</div>
+  }
+
+  return (
+    <Link
+      to="/lists"
+      search={linkSearch}
+      className="brutal-xs flex flex-col gap-1 bg-card p-3 text-foreground no-underline"
+    >
+      {content}
+    </Link>
   )
 }
 

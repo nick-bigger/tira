@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { VisitedDateEditor } from '@/components/visited-date-editor'
 import { useAppData } from '@/lib/app-data'
 import { deletePlace, updatePlaceDetails, type PlaceWithScore } from '@/lib/places'
 import { TIER_BANDS } from '@/lib/ranking'
@@ -39,6 +40,7 @@ function PlaceDetailPage() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [rerankOpen, setRerankOpen] = useState(false)
   const [notesOpen, setNotesOpen] = useState(false)
+  const [visitedDateOpen, setVisitedDateOpen] = useState(false)
 
   const place = [...byTier.liked, ...byTier.okay, ...byTier.nope].find((p) => p.id === id)
 
@@ -196,19 +198,23 @@ function PlaceDetailPage() {
 
             <ScoreGauge place={place} tierCount={byTier[place.tier].length} />
 
-            {place.visitedDate && (
-              <div className="brutal-sm mt-4 flex items-center gap-3 bg-muted px-4 py-3">
-                <span className="brutal-xs flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card">
-                  <CalendarIcon className="h-4 w-4" />
-                </span>
-                <div>
-                  <p className="eyebrow text-[10px] opacity-60">Visited</p>
-                  <p className="text-sm font-bold">
-                    {format(new Date(`${place.visitedDate}T00:00:00`), 'PPP')}
-                  </p>
-                </div>
+            <button
+              type="button"
+              onClick={() => setVisitedDateOpen(true)}
+              className="brutal-sm mt-4 flex w-full items-center gap-3 bg-muted px-4 py-3 text-left hover:opacity-90"
+            >
+              <span className="brutal-xs flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card">
+                <CalendarIcon className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="eyebrow text-[10px] opacity-60">Visited</p>
+                <p className="text-sm font-bold">
+                  {place.visitedDate
+                    ? format(new Date(`${place.visitedDate}T00:00:00`), 'PPP')
+                    : 'Add a visit date'}
+                </p>
               </div>
-            )}
+            </button>
 
             <div className="mt-4">
               <p className="eyebrow mb-1.5 text-[10px] opacity-60">Notes</p>
@@ -240,6 +246,13 @@ function PlaceDetailPage() {
       <NotesEditor
         open={notesOpen}
         onOpenChange={setNotesOpen}
+        place={place}
+        onSaved={handleDataChanged}
+      />
+
+      <VisitedDateEditor
+        open={visitedDateOpen}
+        onOpenChange={setVisitedDateOpen}
         place={place}
         onSaved={handleDataChanged}
       />
