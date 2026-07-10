@@ -105,7 +105,7 @@ export function PlaceMapView({ places }: PlaceMapViewProps) {
           <button
             type="button"
             onClick={() => navigate({ to: '/place/$id', params: { id: selected.id } })}
-            className="brutal-sm absolute right-3 bottom-3 left-3 z-[1000] block bg-card py-3 pr-16 pb-6 pl-4 text-left text-foreground"
+            className="brutal-sm absolute right-3 bottom-3 left-3 z-[1000] block cursor-pointer bg-card py-3 pr-16 pb-6 pl-4 text-left text-foreground"
           >
             <span
               className={`absolute top-3 right-3 min-w-11 rounded-sm border-2 bg-card px-2 py-1 text-center font-display text-base font-bold ${TIER_BADGE_OUTLINE[selected.tier]}`}

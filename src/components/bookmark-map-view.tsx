@@ -98,7 +98,7 @@ export function BookmarkMapView({ bookmarks, onRank, onRemove, removingId }: Boo
               <button
                 type="button"
                 onClick={() => navigate({ to: '/bookmark/$id', params: { id: selected.id } })}
-                className="min-w-0 flex-1 text-left"
+                className="min-w-0 flex-1 cursor-pointer text-left"
               >
                 <span className="block truncate font-display font-bold">{selected.name}</span>
                 {selected.location && (
