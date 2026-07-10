@@ -4,6 +4,7 @@ import { PinIcon } from '@/components/pin-icon'
 import type { Bookmark } from '@/lib/bookmarks'
 import { coordinateFor, placeDistanceMi, type LatLng } from '@/lib/geo'
 import { useGeolocation } from '@/lib/use-geolocation'
+import { useNavigate } from '@tanstack/react-router'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useEffect, useMemo, useState } from 'react'
@@ -51,6 +52,7 @@ export interface BookmarkMapViewProps {
 }
 
 export function BookmarkMapView({ bookmarks, onRank, onRemove, removingId }: BookmarkMapViewProps) {
+  const navigate = useNavigate()
   const { position, locate } = useGeolocation()
   const points = useMemo(() => bookmarks.map((b) => coordinateFor(b)), [bookmarks])
   const bounds = useMemo<[number, number][]>(() => points.map((p) => [p.lat, p.lng]), [points])
@@ -93,7 +95,11 @@ export function BookmarkMapView({ bookmarks, onRank, onRemove, removingId }: Boo
         {selected && (
           <div className="brutal-sm absolute right-3 bottom-3 left-3 z-[1000] bg-card px-4 pt-3 pb-6 text-foreground">
             <div className="flex items-center gap-3">
-              <span className="min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={() => navigate({ to: '/bookmark/$id', params: { id: selected.id } })}
+                className="min-w-0 flex-1 text-left"
+              >
                 <span className="block truncate font-display font-bold">{selected.name}</span>
                 {selected.location && (
                   <span className="flex items-center gap-1 truncate text-xs font-bold opacity-60">
@@ -101,7 +107,7 @@ export function BookmarkMapView({ bookmarks, onRank, onRemove, removingId }: Boo
                     {selected.location}
                   </span>
                 )}
-              </span>
+              </button>
               <span className="flex shrink-0 items-center gap-2">
                 <button
                   type="button"

@@ -13,6 +13,7 @@ import { Route as ListsRouteImport } from './routes/lists'
 import { Route as AddRouteImport } from './routes/add'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PlaceIdRouteImport } from './routes/place.$id'
+import { Route as BookmarkIdRouteImport } from './routes/bookmark.$id'
 
 const ListsRoute = ListsRouteImport.update({
   id: '/lists',
@@ -34,17 +35,24 @@ const PlaceIdRoute = PlaceIdRouteImport.update({
   path: '/place/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BookmarkIdRoute = BookmarkIdRouteImport.update({
+  id: '/bookmark/$id',
+  path: '/bookmark/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/add': typeof AddRoute
   '/lists': typeof ListsRoute
+  '/bookmark/$id': typeof BookmarkIdRoute
   '/place/$id': typeof PlaceIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/add': typeof AddRoute
   '/lists': typeof ListsRoute
+  '/bookmark/$id': typeof BookmarkIdRoute
   '/place/$id': typeof PlaceIdRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,22 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/add': typeof AddRoute
   '/lists': typeof ListsRoute
+  '/bookmark/$id': typeof BookmarkIdRoute
   '/place/$id': typeof PlaceIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/add' | '/lists' | '/place/$id'
+  fullPaths: '/' | '/add' | '/lists' | '/bookmark/$id' | '/place/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/add' | '/lists' | '/place/$id'
-  id: '__root__' | '/' | '/add' | '/lists' | '/place/$id'
+  to: '/' | '/add' | '/lists' | '/bookmark/$id' | '/place/$id'
+  id: '__root__' | '/' | '/add' | '/lists' | '/bookmark/$id' | '/place/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AddRoute: typeof AddRoute
   ListsRoute: typeof ListsRoute
+  BookmarkIdRoute: typeof BookmarkIdRoute
   PlaceIdRoute: typeof PlaceIdRoute
 }
 
@@ -99,6 +109,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlaceIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bookmark/$id': {
+      id: '/bookmark/$id'
+      path: '/bookmark/$id'
+      fullPath: '/bookmark/$id'
+      preLoaderRoute: typeof BookmarkIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -106,6 +123,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AddRoute: AddRoute,
   ListsRoute: ListsRoute,
+  BookmarkIdRoute: BookmarkIdRoute,
   PlaceIdRoute: PlaceIdRoute,
 }
 export const routeTree = rootRouteImport

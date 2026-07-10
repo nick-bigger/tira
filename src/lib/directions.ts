@@ -11,7 +11,7 @@ export function saveMapProvider(provider: MapProvider): void {
   localStorage.setItem(STORAGE_KEY, provider)
 }
 
-interface DirectionsTarget {
+export interface DirectionsTarget {
   name: string
   location: string | null
   lat: number | null

@@ -4,6 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import type { Bookmark } from '@/lib/bookmarks'
 import { placeDistanceMi } from '@/lib/geo'
 import { useGeolocation } from '@/lib/use-geolocation'
+import { Link } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 
 type SortBy = 'distance' | 'date'
@@ -119,7 +120,11 @@ export function BookmarkListView({
               key={b.id}
               className="brutal-sm flex items-center gap-3 bg-card px-4 py-3 text-foreground"
             >
-              <div className="min-w-0 flex-1">
+              <Link
+                to="/bookmark/$id"
+                params={{ id: b.id }}
+                className="min-w-0 flex-1 text-foreground no-underline"
+              >
                 <p className="truncate font-extrabold">{b.name}</p>
                 {b.location && (
                   <p className="mt-1 flex items-center gap-1 truncate text-xs font-bold opacity-60">
@@ -132,7 +137,7 @@ export function BookmarkListView({
                     {placeDistanceMi(b, position).toFixed(1)} mi
                   </p>
                 )}
-              </div>
+              </Link>
               <div className="flex shrink-0 items-center gap-2">
                 <button
                   type="button"

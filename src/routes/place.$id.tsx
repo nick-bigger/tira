@@ -1,12 +1,6 @@
+import { DirectionsButton } from '@/components/directions-button'
 import { Field, FIELD_INPUT_CLASS } from '@/components/form-field'
-import {
-  CalendarIcon,
-  ChevronLeftIcon,
-  CompassIcon,
-  MoreIcon,
-  PencilIcon,
-  TrashIcon,
-} from '@/components/icons'
+import { CalendarIcon, ChevronLeftIcon, MoreIcon, PencilIcon, TrashIcon } from '@/components/icons'
 import { NotesEditor } from '@/components/notes-editor'
 import { PinIcon } from '@/components/pin-icon'
 import { PlaceHeroMap } from '@/components/place-hero-map'
@@ -17,17 +11,10 @@ import { Calendar } from '@/components/ui/calendar'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useAppData } from '@/lib/app-data'
-import {
-  directionsUrl,
-  getSavedMapProvider,
-  saveMapProvider,
-  type MapProvider,
-} from '@/lib/directions'
 import { deletePlace, updatePlaceDetails, type PlaceWithScore } from '@/lib/places'
 import { TIER_BANDS } from '@/lib/ranking'
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import { format } from 'date-fns'
-import { ChevronDownIcon } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 
 export const Route = createFileRoute('/place/$id')({
@@ -272,61 +259,6 @@ function PlaceDetailPage() {
         byTier={byTier}
         onRanked={handleDataChanged}
       />
-    </div>
-  )
-}
-
-const MAP_PROVIDER_LABEL: Record<MapProvider, string> = {
-  apple: 'Apple Maps',
-  google: 'Google Maps',
-}
-
-function DirectionsButton({ place }: { place: PlaceWithScore }) {
-  const [provider, setProvider] = useState<MapProvider | null>(getSavedMapProvider)
-  const [pickerOpen, setPickerOpen] = useState(false)
-
-  function go(p: MapProvider) {
-    saveMapProvider(p)
-    setProvider(p)
-    setPickerOpen(false)
-    window.open(directionsUrl(place, p), '_blank', 'noopener,noreferrer')
-  }
-
-  return (
-    <div className="mt-4 flex items-stretch gap-2">
-      <button
-        type="button"
-        onClick={() => (provider ? go(provider) : setPickerOpen(true))}
-        className="brutal-sm flex h-auto flex-1 items-center justify-center gap-2 border-0 bg-primary py-2.5 font-display text-sm font-bold text-primary-foreground"
-      >
-        <CompassIcon className="h-4 w-4" />
-        Get Directions
-      </button>
-      <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            aria-label="Choose maps app"
-            className="brutal-sm flex h-auto w-11 shrink-0 items-center justify-center border-0 bg-primary text-primary-foreground"
-          >
-            <ChevronDownIcon className="h-4 w-4" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent align="end" sideOffset={6} className="brutal-sm w-40 border-0 bg-card p-1">
-          {(Object.keys(MAP_PROVIDER_LABEL) as MapProvider[]).map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => go(p)}
-              className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left font-display text-sm font-bold hover:bg-muted ${
-                provider === p ? 'text-primary' : ''
-              }`}
-            >
-              {MAP_PROVIDER_LABEL[p]}
-            </button>
-          ))}
-        </PopoverContent>
-      </Popover>
     </div>
   )
 }
