@@ -45,7 +45,7 @@ function SheetContent({
         data-slot="sheet-content"
         className={cn(
           'fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[88svh] w-full max-w-md flex-col gap-0 rounded-t-2xl border-t-[3px] border-border bg-card px-5 pt-5 shadow-[0_-6px_0px_var(--border)] outline-hidden',
-          'pb-[max(1.25rem,env(safe-area-inset-bottom))]',
+          'pb-[calc(1.25rem+env(safe-area-inset-bottom))]',
           'sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-h-[85vh] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border-[3px] sm:pb-5 sm:shadow-[8px_8px_0px_var(--border)]',
           'data-open:animate-in data-open:duration-300 data-open:slide-in-from-bottom',
           'data-closed:animate-out data-closed:duration-200 data-closed:slide-out-to-bottom',

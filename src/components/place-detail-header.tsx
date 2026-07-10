@@ -27,7 +27,7 @@ export function PlaceDetailHeader({
     >
       <div
         className={`mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 pb-2.5 sm:px-6 ${
-          insetTop ? 'pt-[max(0.625rem,env(safe-area-inset-top))]' : 'pt-2.5'
+          insetTop ? 'pt-[calc(0.625rem+env(safe-area-inset-top))]' : 'pt-2.5'
         }`}
       >
         <button

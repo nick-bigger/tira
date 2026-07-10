@@ -237,7 +237,7 @@ export function AddPlacePage() {
 function StepHeader({ title, onClose }: { title: string; onClose: () => void }) {
   return (
     <header className="sticky top-0 z-10 border-b-[3px] border-border bg-background">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 sm:px-6">
+      <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-3 sm:px-6">
         <span className="font-display text-2xl font-bold">{title}</span>
         <button
           type="button"

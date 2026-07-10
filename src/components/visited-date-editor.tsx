@@ -36,7 +36,7 @@ export function VisitedDateEditor({ open, onOpenChange, place, onSaved }: Visite
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-foreground/45 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
-        <DialogPrimitive.Content className="fixed inset-0 z-50 flex flex-col gap-0 bg-card px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] outline-hidden sm:inset-auto sm:top-1/2 sm:left-1/2 sm:h-auto sm:max-h-[85vh] sm:w-full sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border-[3px] sm:border-border sm:pb-5 sm:shadow-[8px_8px_0px_var(--border)] data-open:animate-in data-open:duration-200 data-open:fade-in-0 sm:data-open:zoom-in-95 data-closed:animate-out data-closed:duration-150 data-closed:fade-out-0 sm:data-closed:zoom-out-95">
+        <DialogPrimitive.Content className="fixed inset-0 z-50 flex flex-col gap-0 bg-card px-5 pt-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] outline-hidden sm:inset-auto sm:top-1/2 sm:left-1/2 sm:h-auto sm:max-h-[85vh] sm:w-full sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border-[3px] sm:border-border sm:pb-5 sm:shadow-[8px_8px_0px_var(--border)] data-open:animate-in data-open:duration-200 data-open:fade-in-0 sm:data-open:zoom-in-95 data-closed:animate-out data-closed:duration-150 data-closed:fade-out-0 sm:data-closed:zoom-out-95">
           <div className="mb-4 flex items-center justify-between">
             <DialogPrimitive.Title className="font-display text-xl font-bold">
               Visited
