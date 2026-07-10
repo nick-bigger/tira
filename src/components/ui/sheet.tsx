@@ -48,7 +48,7 @@ function SheetContent({
         className={cn(
           fullScreen
             ? [
-                'fixed inset-0 z-50 flex flex-col gap-0 bg-card px-5 outline-hidden',
+                'fixed inset-0 z-50 flex flex-col gap-0 bg-card outline-hidden',
                 'pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))]',
                 'data-open:animate-in data-open:duration-250 data-open:slide-in-from-bottom',
                 'data-closed:animate-out data-closed:duration-200 data-closed:slide-out-to-bottom',
@@ -66,7 +66,11 @@ function SheetContent({
         )}
         {...props}
       >
-        {children}
+        {fullScreen ? (
+          <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-0 px-5">{children}</div>
+        ) : (
+          children
+        )}
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   )
