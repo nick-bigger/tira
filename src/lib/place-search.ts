@@ -38,6 +38,35 @@ interface NominatimResult {
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search'
 const PHOTON_URL = 'https://photon.komoot.io/api/'
 
+const SEARCH_CACHE_TTL_MS = 5 * 60 * 1000
+
+/** Small TTL cache shared by the three geocoding search functions below - dedupes the network
+ *  call when a user retypes/backspaces to the same query or reopens the overlay on the same
+ *  search within a session, without letting results go stale for the whole session. */
+class TtlCache<T> {
+  private store = new Map<string, { value: T; expiresAt: number }>()
+
+  get(key: string): T | undefined {
+    const entry = this.store.get(key)
+    if (!entry) return undefined
+    if (Date.now() > entry.expiresAt) {
+      this.store.delete(key)
+      return undefined
+    }
+    return entry.value
+  }
+
+  set(key: string, value: T): void {
+    this.store.set(key, { value, expiresAt: Date.now() + SEARCH_CACHE_TTL_MS })
+  }
+}
+
+// Rounded to ~1km precision for the cache key only - searchPlaces' bbox already spans ~130km,
+// so small GPS jitter shouldn't fragment the cache into near-duplicate entries.
+function roundCoord(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
 function cityStateOf(r: NominatimResult): string | null {
   const city = r.address?.city ?? r.address?.town ?? r.address?.village ?? r.address?.hamlet
   if (city && r.address?.state) return `${city}, ${r.address.state}`
@@ -128,12 +157,18 @@ async function photonSearch(
  * it still finds a place when the query has a typo (e.g. "chiptole" ->
  * "Chipotle"). Falls back to Nominatim's exact matching if Photon errors.
  */
+const placeSearchCache = new TtlCache<PlaceSearchResult[]>()
+
 export async function searchPlaces(
   query: string,
   opts: { near?: LatLng; signal?: AbortSignal } = {},
 ): Promise<PlaceSearchResult[]> {
   const trimmed = query.trim()
   if (!trimmed) return []
+
+  const cacheKey = `${trimmed.toLowerCase()}|${opts.near ? roundCoord(opts.near.lat) : ''}|${opts.near ? roundCoord(opts.near.lng) : ''}`
+  const cached = placeSearchCache.get(cacheKey)
+  if (cached) return cached
 
   const params: Record<string, string> = {}
   if (opts.near) {
@@ -147,9 +182,10 @@ export async function searchPlaces(
     params.lon = String(lng)
   }
 
+  let places: PlaceSearchResult[]
   try {
     const features = await photonSearch(trimmed, params, opts.signal)
-    return features.map((f) => {
+    places = features.map((f) => {
       const [lng, lat] = f.geometry.coordinates
       return {
         id: `osm:${f.properties.osm_type}${f.properties.osm_id}`,
@@ -170,7 +206,7 @@ export async function searchPlaces(
       nominatimParams.bounded = '1'
     }
     const results = await nominatimSearch(trimmed, nominatimParams, opts.signal)
-    return results.map((r) => ({
+    places = results.map((r) => ({
       id: `osm:${r.place_id}`,
       name: r.name || r.display_name.split(',')[0],
       location: locationFor(r),
@@ -178,6 +214,9 @@ export async function searchPlaces(
       lng: Number(r.lon),
     }))
   }
+
+  placeSearchCache.set(cacheKey, places)
+  return places
 }
 
 /**
@@ -186,14 +225,20 @@ export async function searchPlaces(
  * browser's current location, e.g. to find a restaurant in a city the
  * user isn't currently in.
  */
+const locationSearchCache = new TtlCache<LocationSuggestion[]>()
+
 export async function searchLocations(
   query: string,
   signal?: AbortSignal,
 ): Promise<LocationSuggestion[]> {
   const trimmed = query.trim()
   if (!trimmed) return []
+  const cacheKey = trimmed.toLowerCase()
+  const cached = locationSearchCache.get(cacheKey)
+  if (cached) return cached
+
   const results = await nominatimSearch(trimmed, { limit: '6', featureType: 'settlement' }, signal)
-  return results.map((r) => ({
+  const suggestions = results.map((r) => ({
     id: `osm:${r.place_id}`,
     label: [cityStateOf(r) ?? r.name, r.address?.country]
       .filter((p): p is string => !!p)
@@ -201,6 +246,8 @@ export async function searchLocations(
     lat: Number(r.lat),
     lng: Number(r.lon),
   }))
+  locationSearchCache.set(cacheKey, suggestions)
+  return suggestions
 }
 
 /**
@@ -208,14 +255,20 @@ export async function searchLocations(
  * coordinates - used by manual place entry so a hand-typed place can still
  * get a real pin on the map instead of a mocked one.
  */
+const addressSearchCache = new TtlCache<LocationSuggestion[]>()
+
 export async function searchAddresses(
   query: string,
   signal?: AbortSignal,
 ): Promise<LocationSuggestion[]> {
   const trimmed = query.trim()
   if (!trimmed) return []
+  const cacheKey = trimmed.toLowerCase()
+  const cached = addressSearchCache.get(cacheKey)
+  if (cached) return cached
+
   const results = await nominatimSearch(trimmed, { limit: '6' }, signal)
-  return results.map((r) => {
+  const suggestions = results.map((r) => {
     const parts = r.display_name.split(', ')
     return {
       id: `osm:${r.place_id}`,
@@ -224,6 +277,8 @@ export async function searchAddresses(
       lng: Number(r.lon),
     }
   })
+  addressSearchCache.set(cacheKey, suggestions)
+  return suggestions
 }
 
 const DEBOUNCE_MS = 450
