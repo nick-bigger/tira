@@ -55,6 +55,7 @@ function ListsPage() {
       lng: bookmark.lng ?? undefined,
       bookmarkId: bookmark.id,
       isManual: false,
+      osmId: bookmark.osmId ?? undefined,
     })
   }
 

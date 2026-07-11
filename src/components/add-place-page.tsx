@@ -20,6 +20,7 @@ import {
 import type { PlaceWithScore } from '@/lib/places'
 import { listRecentViews, recordRecentView, type RecentView } from '@/lib/recent-views'
 import { useGeolocation } from '@/lib/use-geolocation'
+import { useLiveOsmDetails } from '@/lib/use-osm-enrichment'
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useState, type FormEvent } from 'react'
 
@@ -34,6 +35,16 @@ export interface Candidate {
   bookmarkId?: string
   /** True when typed in via "add manually" rather than picked from a search result/bookmark - only these are editable later. */
   isManual: boolean
+  /** OSM type+id (e.g. "osm:n123") when this candidate came from a search result/bookmark that
+   *  has one - lets the place detail page fetch cuisine/website/phone/hours from OpenStreetMap. */
+  osmId?: string
+}
+
+/** A search result's id is only a real OSM id in the "osm:n123" shape produced by
+ *  osmIdOf() in place-search.ts - guards against passing through an unrelated internal id
+ *  (e.g. a legacy recent-view row id) as if it were one. */
+function realOsmId(id: string): string | undefined {
+  return /^osm:[nwr]\d+$/.test(id) ? id : undefined
 }
 
 /** ~50m, in miles - treats a search result as "the same place" as an existing spot. */
@@ -98,7 +109,14 @@ export function AddPlacePage() {
   // the detail view itself) both hand the candidate off to the review overlay.
   function selectResult(r: PlaceSearchResult) {
     void recordRecentView({ name: r.name, location: r.location, lat: r.lat, lng: r.lng })
-    openReview({ name: r.name, location: r.location, lat: r.lat, lng: r.lng, isManual: false })
+    openReview({
+      name: r.name,
+      location: r.location,
+      lat: r.lat,
+      lng: r.lng,
+      isManual: false,
+      osmId: realOsmId(r.id),
+    })
   }
 
   function openPreview(r: PlaceSearchResult) {
@@ -139,7 +157,13 @@ export function AddPlacePage() {
       if (existingBookmarkId) {
         await deleteBookmark(existingBookmarkId)
       } else {
-        await createBookmark({ name: r.name, location: r.location, lat: r.lat, lng: r.lng })
+        await createBookmark({
+          name: r.name,
+          location: r.location,
+          lat: r.lat,
+          lng: r.lng,
+          osmId: realOsmId(r.id),
+        })
       }
       await refresh()
     } finally {
@@ -575,11 +599,13 @@ function PreviewStep({
   onReview: () => void
   onChange: () => void
 }) {
+  const { details: osmDetails } = useLiveOsmDetails(realOsmId(result.id))
   return (
     <div className="min-h-svh pb-12">
       <PlaceDetailHeader onBack={onChange} backLabel="Back to search" />
       <UnreviewedPlaceDetail
         place={result}
+        osmDetails={osmDetails}
         bookmarked={!!bookmark}
         bookmarkPending={bookmarkPending}
         onToggleBookmark={() => onToggleBookmark(bookmark?.id ?? null)}

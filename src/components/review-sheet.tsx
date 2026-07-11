@@ -92,6 +92,7 @@ export function ReviewSheet({ open, onOpenChange, candidate, byTier, onSaved }: 
         lat: candidate.lat,
         lng: candidate.lng,
         isManual: candidate.isManual,
+        osmId: candidate.osmId,
       })
       if (candidate.bookmarkId) {
         await deleteBookmark(candidate.bookmarkId)

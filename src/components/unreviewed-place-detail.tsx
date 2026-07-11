@@ -2,7 +2,9 @@ import { DirectionsButton } from '@/components/directions-button'
 import { BookmarkIcon } from '@/components/icons'
 import { PinHeroMap } from '@/components/pin-hero-map'
 import { PinIcon } from '@/components/pin-icon'
+import { ContactBadges, CuisineText, HoursDisclosure } from '@/components/place-osm-details'
 import { Button } from '@/components/ui/button'
+import type { OsmDetails } from '@/lib/osm-enrichment'
 
 export interface UnreviewedPlace {
   id: string
@@ -14,6 +16,7 @@ export interface UnreviewedPlace {
 
 export interface UnreviewedPlaceDetailProps {
   place: UnreviewedPlace
+  osmDetails: OsmDetails
   bookmarked: boolean
   bookmarkPending: boolean
   onToggleBookmark: () => void
@@ -26,6 +29,7 @@ export interface UnreviewedPlaceDetailProps {
  *  surfaces render this same component rather than drifting into two look-alikes. */
 export function UnreviewedPlaceDetail({
   place,
+  osmDetails,
   bookmarked,
   bookmarkPending,
   onToggleBookmark,
@@ -53,6 +57,7 @@ export function UnreviewedPlaceDetail({
           >
             {place.name}
           </h1>
+          <CuisineText cuisine={osmDetails.cuisine} />
           {place.location && (
             <p className="mt-1 flex items-center gap-1 text-sm font-bold opacity-60">
               <PinIcon className="h-3.5 w-3.5 shrink-0" />
@@ -60,7 +65,15 @@ export function UnreviewedPlaceDetail({
             </p>
           )}
 
+          <ContactBadges website={osmDetails.website} phone={osmDetails.phone} />
+
           <DirectionsButton place={place} />
+
+          {osmDetails.openingHours && (
+            <div className="brutal-sm mt-3 bg-muted p-3">
+              <HoursDisclosure openingHours={osmDetails.openingHours} />
+            </div>
+          )}
 
           <button
             type="button"

@@ -1,5 +1,6 @@
 import type { Row } from '@libsql/client/web'
 import { db, ensureSchema } from './db'
+import type { OsmDetails } from './osm-enrichment'
 
 export interface Bookmark {
   id: string
@@ -8,6 +9,12 @@ export interface Bookmark {
   lat: number | null
   lng: number | null
   createdAt: string
+  osmId: string | null
+  cuisine: string | null
+  website: string | null
+  phone: string | null
+  openingHours: string | null
+  osmSyncedAt: string | null
 }
 
 function rowToBookmark(row: Row): Bookmark {
@@ -18,6 +25,12 @@ function rowToBookmark(row: Row): Bookmark {
     lat: row.lat === null ? null : Number(row.lat),
     lng: row.lng === null ? null : Number(row.lng),
     createdAt: row.created_at as string,
+    osmId: (row.osm_id as string | null) ?? null,
+    cuisine: (row.cuisine as string | null) ?? null,
+    website: (row.website as string | null) ?? null,
+    phone: (row.phone as string | null) ?? null,
+    openingHours: (row.opening_hours as string | null) ?? null,
+    osmSyncedAt: (row.osm_synced_at as string | null) ?? null,
   }
 }
 
@@ -32,14 +45,22 @@ export interface NewBookmarkInput {
   location: string
   lat?: number
   lng?: number
+  osmId?: string
 }
 
 export async function createBookmark(input: NewBookmarkInput): Promise<string> {
   await ensureSchema()
   const id = crypto.randomUUID()
   await db.execute({
-    sql: 'INSERT INTO bookmarks (id, name, location, lat, lng) VALUES (?, ?, ?, ?, ?)',
-    args: [id, input.name, input.location || null, input.lat ?? null, input.lng ?? null],
+    sql: 'INSERT INTO bookmarks (id, name, location, lat, lng, osm_id) VALUES (?, ?, ?, ?, ?, ?)',
+    args: [
+      id,
+      input.name,
+      input.location || null,
+      input.lat ?? null,
+      input.lng ?? null,
+      input.osmId ?? null,
+    ],
   })
   return id
 }
@@ -47,4 +68,14 @@ export async function createBookmark(input: NewBookmarkInput): Promise<string> {
 export async function deleteBookmark(id: string): Promise<void> {
   await ensureSchema()
   await db.execute({ sql: 'DELETE FROM bookmarks WHERE id = ?', args: [id] })
+}
+
+/** Caches OSM tags onto a bookmark - mirrors updatePlaceOsmEnrichment in places.ts, used by the
+ *  lazy fetch-once-and-cache sync on the bookmark detail page. */
+export async function updateBookmarkOsmEnrichment(id: string, details: OsmDetails): Promise<void> {
+  await ensureSchema()
+  await db.execute({
+    sql: "UPDATE bookmarks SET cuisine = ?, website = ?, phone = ?, opening_hours = ?, osm_synced_at = datetime('now') WHERE id = ?",
+    args: [details.cuisine, details.website, details.phone, details.openingHours, id],
+  })
 }

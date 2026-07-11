@@ -1,8 +1,9 @@
 import { PlaceDetailHeader } from '@/components/place-detail-header'
 import { UnreviewedPlaceDetail } from '@/components/unreviewed-place-detail'
 import { useAppData } from '@/lib/app-data'
-import { deleteBookmark } from '@/lib/bookmarks'
+import { deleteBookmark, updateBookmarkOsmEnrichment } from '@/lib/bookmarks'
 import { useGoBack } from '@/lib/use-go-back'
+import { useCachedOsmSync } from '@/lib/use-osm-enrichment'
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 
@@ -18,6 +19,11 @@ function BookmarkDetailPage() {
   const [removing, setRemoving] = useState(false)
 
   const bookmark = bookmarks.find((b) => b.id === id)
+
+  useCachedOsmSync(
+    { osmId: bookmark?.osmId ?? null, osmSyncedAt: bookmark?.osmSyncedAt ?? null },
+    (details) => updateBookmarkOsmEnrichment(id, details).then(refresh),
+  )
 
   if (!bookmark) {
     return (
@@ -42,6 +48,7 @@ function BookmarkDetailPage() {
       lng: bookmark!.lng ?? undefined,
       bookmarkId: bookmark!.id,
       isManual: false,
+      osmId: bookmark!.osmId ?? undefined,
     })
   }
 
@@ -57,6 +64,12 @@ function BookmarkDetailPage() {
       <PlaceDetailHeader onBack={goBack} />
       <UnreviewedPlaceDetail
         place={bookmark}
+        osmDetails={{
+          cuisine: bookmark.cuisine,
+          website: bookmark.website,
+          phone: bookmark.phone,
+          openingHours: bookmark.openingHours,
+        }}
         bookmarked
         bookmarkPending={removing}
         onToggleBookmark={handleRemove}

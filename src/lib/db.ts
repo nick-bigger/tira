@@ -48,8 +48,15 @@ export function ensureSchema(): Promise<void> {
             'is_manual',
             'ALTER TABLE places ADD COLUMN is_manual INTEGER NOT NULL DEFAULT 0',
           ),
-          db.execute(
-            `
+          addColumnIfMissing('osm_id', 'ALTER TABLE places ADD COLUMN osm_id TEXT'),
+          addColumnIfMissing('cuisine', 'ALTER TABLE places ADD COLUMN cuisine TEXT'),
+          addColumnIfMissing('website', 'ALTER TABLE places ADD COLUMN website TEXT'),
+          addColumnIfMissing('phone', 'ALTER TABLE places ADD COLUMN phone TEXT'),
+          addColumnIfMissing('opening_hours', 'ALTER TABLE places ADD COLUMN opening_hours TEXT'),
+          addColumnIfMissing('osm_synced_at', 'ALTER TABLE places ADD COLUMN osm_synced_at TEXT'),
+          db
+            .execute(
+              `
           CREATE TABLE IF NOT EXISTS bookmarks (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
@@ -59,7 +66,23 @@ export function ensureSchema(): Promise<void> {
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
           )
         `,
-          ),
+            )
+            .then(() =>
+              Promise.all([
+                addColumnIfMissing('osm_id', 'ALTER TABLE bookmarks ADD COLUMN osm_id TEXT'),
+                addColumnIfMissing('cuisine', 'ALTER TABLE bookmarks ADD COLUMN cuisine TEXT'),
+                addColumnIfMissing('website', 'ALTER TABLE bookmarks ADD COLUMN website TEXT'),
+                addColumnIfMissing('phone', 'ALTER TABLE bookmarks ADD COLUMN phone TEXT'),
+                addColumnIfMissing(
+                  'opening_hours',
+                  'ALTER TABLE bookmarks ADD COLUMN opening_hours TEXT',
+                ),
+                addColumnIfMissing(
+                  'osm_synced_at',
+                  'ALTER TABLE bookmarks ADD COLUMN osm_synced_at TEXT',
+                ),
+              ]),
+            ),
           db.execute(
             `
           CREATE TABLE IF NOT EXISTS recent_views (

@@ -1,6 +1,7 @@
 import type { Tier } from '@/components/tier-icon'
 import type { Row } from '@libsql/client/web'
 import { db, ensureSchema } from './db'
+import type { OsmDetails } from './osm-enrichment'
 import { scoreFor } from './ranking'
 
 export interface Place {
@@ -15,6 +16,12 @@ export interface Place {
   lat: number | null
   lng: number | null
   isManual: boolean
+  osmId: string | null
+  cuisine: string | null
+  website: string | null
+  phone: string | null
+  openingHours: string | null
+  osmSyncedAt: string | null
 }
 
 export interface PlaceWithScore extends Place {
@@ -35,6 +42,12 @@ function rowToPlace(row: Row): Place {
     lat: row.lat === null ? null : Number(row.lat),
     lng: row.lng === null ? null : Number(row.lng),
     isManual: Number(row.is_manual) === 1,
+    osmId: (row.osm_id as string | null) ?? null,
+    cuisine: (row.cuisine as string | null) ?? null,
+    website: (row.website as string | null) ?? null,
+    phone: (row.phone as string | null) ?? null,
+    openingHours: (row.opening_hours as string | null) ?? null,
+    osmSyncedAt: (row.osm_synced_at as string | null) ?? null,
   }
 }
 
@@ -86,6 +99,7 @@ export interface NewPlaceInput {
   lat?: number
   lng?: number
   isManual: boolean
+  osmId?: string
 }
 
 export async function createPlace(input: NewPlaceInput): Promise<string> {
@@ -98,7 +112,7 @@ export async function createPlace(input: NewPlaceInput): Promise<string> {
         args: [input.tier, input.insertionIndex],
       },
       {
-        sql: 'INSERT INTO places (id, name, location, notes, visited_date, tier, position, lat, lng, is_manual) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        sql: 'INSERT INTO places (id, name, location, notes, visited_date, tier, position, lat, lng, is_manual, osm_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         args: [
           id,
           input.name,
@@ -110,12 +124,38 @@ export async function createPlace(input: NewPlaceInput): Promise<string> {
           input.lat ?? null,
           input.lng ?? null,
           input.isManual ? 1 : 0,
+          input.osmId ?? null,
         ],
       },
     ],
     'write',
   )
   return id
+}
+
+/**
+ * Caches OSM tags fetched via osm-enrichment.ts onto a place - called either lazily (first
+ * detail-page view of a place that already has an osm_id, no `osmId` field passed) or from the
+ * "Find/Refresh on OpenStreetMap" menu action (which also passes a freshly-discovered `osmId`
+ * for places saved before this feature existed).
+ */
+export async function updatePlaceOsmEnrichment(
+  id: string,
+  details: OsmDetails,
+  osmId?: string,
+): Promise<void> {
+  await ensureSchema()
+  if (osmId !== undefined) {
+    await db.execute({
+      sql: "UPDATE places SET osm_id = ?, cuisine = ?, website = ?, phone = ?, opening_hours = ?, osm_synced_at = datetime('now') WHERE id = ?",
+      args: [osmId, details.cuisine, details.website, details.phone, details.openingHours, id],
+    })
+  } else {
+    await db.execute({
+      sql: "UPDATE places SET cuisine = ?, website = ?, phone = ?, opening_hours = ?, osm_synced_at = datetime('now') WHERE id = ?",
+      args: [details.cuisine, details.website, details.phone, details.openingHours, id],
+    })
+  }
 }
 
 export interface PlaceDetailsInput {

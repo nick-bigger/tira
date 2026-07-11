@@ -28,11 +28,19 @@ interface NominatimAddress {
 
 interface NominatimResult {
   place_id: number
+  osm_type: 'node' | 'way' | 'relation'
+  osm_id: number
   lat: string
   lon: string
   display_name: string
   name?: string
   address?: NominatimAddress
+}
+
+/** First letter of a Nominatim/Photon osm_type ('node'/'way'/'relation' or 'N'/'W'/'R'),
+ *  lowercased so both sources produce the same id shape for osm-enrichment.ts to parse. */
+function osmIdOf(type: string, id: number): string {
+  return `osm:${type[0].toLowerCase()}${id}`
 }
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search'
@@ -188,7 +196,7 @@ export async function searchPlaces(
     places = features.map((f) => {
       const [lng, lat] = f.geometry.coordinates
       return {
-        id: `osm:${f.properties.osm_type}${f.properties.osm_id}`,
+        id: osmIdOf(f.properties.osm_type, f.properties.osm_id),
         name: f.properties.name ?? trimmed,
         location: locationForPhoton(f.properties),
         lat,
@@ -207,7 +215,7 @@ export async function searchPlaces(
     }
     const results = await nominatimSearch(trimmed, nominatimParams, opts.signal)
     places = results.map((r) => ({
-      id: `osm:${r.place_id}`,
+      id: osmIdOf(r.osm_type, r.osm_id),
       name: r.name || r.display_name.split(',')[0],
       location: locationFor(r),
       lat: Number(r.lat),
