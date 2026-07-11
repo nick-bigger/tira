@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { useAppData } from '@/lib/app-data'
 import { deleteBookmark, type Bookmark } from '@/lib/bookmarks'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 type Mode = 'been' | 'want-to-try'
 
@@ -37,6 +37,11 @@ function ListsPage() {
   const mode: Mode = modeSearch ?? 'been'
   const [view, setView] = useState<View>('list')
   const [removingId, setRemovingId] = useState<string | null>(null)
+  const [mapCardHeight, setMapCardHeight] = useState<number | null>(null)
+
+  useEffect(() => {
+    setMapCardHeight(null)
+  }, [view, mode])
 
   function setMode(next: Mode) {
     void navigate({ to: '/lists', search: next === 'been' ? {} : { mode: next }, replace: true })
@@ -117,7 +122,7 @@ function ListsPage() {
               (view === 'list' ? (
                 <PlaceListView places={allPlaces} />
               ) : (
-                <PlaceMapView places={allPlaces} />
+                <PlaceMapView places={allPlaces} onCardHeightChange={setMapCardHeight} />
               ))}
             {mode === 'want-to-try' &&
               (view === 'list' ? (
@@ -133,6 +138,7 @@ function ListsPage() {
                   onRank={handleRank}
                   onRemove={handleRemoveBookmark}
                   removingId={removingId}
+                  onCardHeightChange={setMapCardHeight}
                 />
               ))}
 
@@ -144,7 +150,10 @@ function ListsPage() {
                 // On wide screens, aligns with the max-w-5xl content column's right edge (plus
                 // 1rem) instead of the raw viewport edge, matching where the button sits on mobile.
                 right: 'max(1rem, env(safe-area-inset-right), calc((100vw - 64rem) / 2 + 1rem))',
-                bottom: `calc(${BOTTOM_NAV_CLEARANCE} + 1rem)`,
+                bottom:
+                  mapCardHeight != null
+                    ? `calc(${BOTTOM_NAV_CLEARANCE} + 1rem + ${Math.ceil(mapCardHeight)}px + 0.375rem)`
+                    : `calc(${BOTTOM_NAV_CLEARANCE} + 1rem)`,
               }}
             >
               {view === 'list' ? (

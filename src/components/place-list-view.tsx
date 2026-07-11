@@ -1,19 +1,13 @@
 import { CheckIcon, SearchIcon, SortIcon } from '@/components/icons'
 import { PinIcon } from '@/components/pin-icon'
 import { Spinner } from '@/components/spinner'
-import type { Tier } from '@/components/tier-icon'
+import { TIER_BADGE_FILL } from '@/components/tier-icon'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { placeDistanceMi } from '@/lib/geo'
 import type { PlaceWithScore } from '@/lib/places'
 import { useGeolocation } from '@/lib/use-geolocation'
 import { Link } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
-
-const TIER_BADGE_FILL: Record<Tier, string> = {
-  liked: 'bg-tier-liked text-tier-liked-foreground',
-  okay: 'bg-tier-okay text-tier-okay-foreground',
-  nope: 'bg-tier-nope text-tier-nope-foreground',
-}
 
 type SortBy = 'score' | 'distance' | 'date'
 

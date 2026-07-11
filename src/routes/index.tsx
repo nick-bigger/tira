@@ -38,7 +38,7 @@ function HomePage() {
         className="brutal-xs mb-4 flex w-full items-center gap-2 bg-card px-3.5 py-3 text-left text-base font-bold text-muted-foreground no-underline md:text-sm"
       >
         <SearchIcon className="h-4 w-4 shrink-0 opacity-60" />
-        Find a new tiramisu spot...
+        Review a new tiramisu spot...
       </Link>
 
       <div className="brutal-xs mb-5 flex items-center gap-3 bg-accent px-4 py-3 text-accent-foreground">
@@ -129,7 +129,7 @@ function HomePage() {
 
           {stats.recentlyAdded.length > 0 && (
             <>
-              <p className="mb-2 font-display text-sm font-bold">Recently added</p>
+              <p className="mt-8 mb-2 font-display text-sm font-bold">Recently added</p>
               <div className="flex flex-col gap-2">
                 {stats.recentlyAdded.map((p) => (
                   <Link

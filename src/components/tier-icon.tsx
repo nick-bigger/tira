@@ -6,6 +6,12 @@ export const TIER_LABEL: Record<Tier, string> = {
   nope: "Didn't Like It",
 }
 
+export const TIER_BADGE_FILL: Record<Tier, string> = {
+  liked: 'bg-tier-liked text-tier-liked-foreground',
+  okay: 'bg-tier-okay text-tier-okay-foreground',
+  nope: 'bg-tier-nope text-tier-nope-foreground',
+}
+
 export function TierIcon({ tier, className }: { tier: Tier; className?: string }) {
   if (tier === 'liked') {
     return (

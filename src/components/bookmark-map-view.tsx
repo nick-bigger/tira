@@ -7,7 +7,7 @@ import { useGeolocation } from '@/lib/use-geolocation'
 import { useNavigate } from '@tanstack/react-router'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, Marker, useMap, useMapEvents } from 'react-leaflet'
 
 const bookmarkIcon = L.divIcon({
@@ -49,9 +49,18 @@ export interface BookmarkMapViewProps {
   onRank: (bookmark: Bookmark) => void
   onRemove: (bookmark: Bookmark) => void
   removingId: string | null
+  /** Reports the selected-bookmark card's rendered height (or null when none is shown), so a
+   * caller-owned floating button can reposition itself above the card instead of overlapping it. */
+  onCardHeightChange?: (height: number | null) => void
 }
 
-export function BookmarkMapView({ bookmarks, onRank, onRemove, removingId }: BookmarkMapViewProps) {
+export function BookmarkMapView({
+  bookmarks,
+  onRank,
+  onRemove,
+  removingId,
+  onCardHeightChange,
+}: BookmarkMapViewProps) {
   const navigate = useNavigate()
   const { position, locate } = useGeolocation()
   const points = useMemo(() => bookmarks.map((b) => coordinateFor(b)), [bookmarks])
@@ -60,11 +69,29 @@ export function BookmarkMapView({ bookmarks, onRank, onRemove, removingId }: Boo
   const selected = bookmarks.find((b) => b.id === selectedId) ?? null
   const selectedCoord = selected ? coordinateFor(selected) : null
   const dist = selected && position ? placeDistanceMi(selected, position) : null
+  const cardRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     locate()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (!selected) {
+      onCardHeightChange?.(null)
+      return undefined
+    }
+    const el = cardRef.current
+    if (!el) return undefined
+    // Reads el.offsetHeight (border-box, includes padding) rather than the ResizeObserver
+    // entry's contentRect (content-box only) - this card's height is mostly padding, so
+    // contentRect drastically undershoots how much room the floating button needs to clear it.
+    const observer = new ResizeObserver(() => onCardHeightChange?.(el.offsetHeight))
+    observer.observe(el)
+    onCardHeightChange?.(el.offsetHeight)
+    return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected])
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -93,7 +120,10 @@ export function BookmarkMapView({ bookmarks, onRank, onRemove, removingId }: Boo
           <LocateControl />
         </MapContainer>
         {selected && (
-          <div className="brutal-sm brutal-hover absolute right-3 bottom-3 left-3 z-[1000] bg-card px-4 pt-3 pb-6 text-foreground">
+          <div
+            ref={cardRef}
+            className="brutal-sm brutal-hover absolute right-3 bottom-3 left-3 z-[1000] bg-card px-4 pt-3 pb-6 text-foreground"
+          >
             <div className="flex items-center gap-3">
               <button
                 type="button"

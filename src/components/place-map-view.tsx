@@ -1,25 +1,19 @@
 import { AppTileLayer, FitBounds, LocateControl } from '@/components/map-controls'
 import { PinIcon } from '@/components/pin-icon'
-import type { Tier } from '@/components/tier-icon'
+import { TIER_BADGE_FILL, type Tier } from '@/components/tier-icon'
 import { coordinateFor, placeDistanceMi, type LatLng } from '@/lib/geo'
 import type { PlaceWithScore } from '@/lib/places'
 import { useGeolocation } from '@/lib/use-geolocation'
 import { useNavigate } from '@tanstack/react-router'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, Marker, useMap, useMapEvents } from 'react-leaflet'
 
 const TIER_HEX: Record<Tier, { bg: string; fg: string }> = {
   liked: { bg: '#5c8f5f', fg: '#f7eedd' },
   okay: { bg: '#c2924a', fg: '#2b1810' },
   nope: { bg: '#bd5a4d', fg: '#f7eedd' },
-}
-
-const TIER_BADGE_OUTLINE: Record<Tier, string> = {
-  liked: 'border-tier-liked text-tier-liked',
-  okay: 'border-tier-okay text-tier-okay',
-  nope: 'border-tier-nope text-tier-nope',
 }
 
 function scoreIcon(place: PlaceWithScore): L.DivIcon {
@@ -58,9 +52,12 @@ function RecenterOnSelect({ target }: { target: LatLng | null }) {
 
 export interface PlaceMapViewProps {
   places: PlaceWithScore[]
+  /** Reports the selected-place card's rendered height (or null when none is shown), so a
+   * caller-owned floating button can reposition itself above the card instead of overlapping it. */
+  onCardHeightChange?: (height: number | null) => void
 }
 
-export function PlaceMapView({ places }: PlaceMapViewProps) {
+export function PlaceMapView({ places, onCardHeightChange }: PlaceMapViewProps) {
   const navigate = useNavigate()
   const { position, locate } = useGeolocation()
   const points = useMemo(() => places.map((p) => coordinateFor(p)), [places])
@@ -69,11 +66,29 @@ export function PlaceMapView({ places }: PlaceMapViewProps) {
   const selected = places.find((p) => p.id === selectedId) ?? null
   const selectedCoord = selected ? coordinateFor(selected) : null
   const dist = selected && position ? placeDistanceMi(selected, position) : null
+  const cardRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     locate()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (!selected) {
+      onCardHeightChange?.(null)
+      return undefined
+    }
+    const el = cardRef.current
+    if (!el) return undefined
+    // Reads el.offsetHeight (border-box, includes padding) rather than the ResizeObserver
+    // entry's contentRect (content-box only) - this card's height is mostly padding, so
+    // contentRect drastically undershoots how much room the floating button needs to clear it.
+    const observer = new ResizeObserver(() => onCardHeightChange?.(el.offsetHeight))
+    observer.observe(el)
+    onCardHeightChange?.(el.offsetHeight)
+    return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected])
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -103,12 +118,13 @@ export function PlaceMapView({ places }: PlaceMapViewProps) {
         </MapContainer>
         {selected && (
           <button
+            ref={cardRef}
             type="button"
             onClick={() => navigate({ to: '/place/$id', params: { id: selected.id } })}
             className="brutal-sm absolute right-3 bottom-3 left-3 z-[1000] block cursor-pointer bg-card py-3 pr-16 pb-6 pl-4 text-left text-foreground"
           >
             <span
-              className={`absolute top-3 right-3 min-w-11 rounded-sm border-2 bg-card px-2 py-1 text-center font-display text-base font-bold ${TIER_BADGE_OUTLINE[selected.tier]}`}
+              className={`brutal-xs absolute top-3 right-3 flex h-10 w-10 items-center justify-center rounded-full font-display text-sm font-bold ${TIER_BADGE_FILL[selected.tier]}`}
             >
               {selected.score.toFixed(1)}
             </span>
