@@ -76,13 +76,13 @@ export function PlaceMapView({ places }: PlaceMapViewProps) {
   }, [])
 
   return (
-    <div>
-      <div className="brutal relative z-0 h-[min(62vh,620px)] overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="relative z-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-0 shadow-none sm:h-[min(62vh,620px)] sm:flex-none sm:rounded-[var(--radius-lg)] sm:border-[3px] sm:border-border sm:shadow-[6px_6px_0px_var(--border)]">
         <MapContainer
           center={[39.8, -98.5]}
           zoom={4}
           scrollWheelZoom={false}
-          className="h-full w-full"
+          className="min-h-0 w-full flex-1"
         >
           <AppTileLayer />
           <FitBounds points={bounds} />

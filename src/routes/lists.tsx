@@ -64,12 +64,16 @@ function ListsPage() {
   }
 
   const hasContent = mode === 'been' ? allPlaces.length > 0 : bookmarks.length > 0
+  const isMapView = hasContent && view === 'map'
 
   return (
-    <div className="min-h-svh">
-      <header className="sticky top-0 z-10 border-b-[3px] border-border bg-background">
+    // min-height leaves room for the fixed BottomNav (mirrors BOTTOM_NAV_CLEARANCE) so a flex-1
+    // map view below fills exactly to the nav's top edge instead of extending behind it. Uses dvh
+    // (not svh) so the fill tracks the real viewport as mobile browser chrome shows/hides, instead
+    // of leaving a gap once the address bar collapses and the fixed nav shifts down with it.
+    <div className="flex min-h-[calc(100dvh-4.25rem-env(safe-area-inset-bottom))] flex-col">
+      <header className="sticky top-0 z-10 shrink-0 border-b-[3px] border-border bg-background">
         <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-3 sm:px-6">
-          <TiraMark className="h-7 w-7" />
           <span className="font-display text-2xl font-bold">Your Lists</span>
         </div>
         <div className="mx-auto flex max-w-5xl px-4 sm:px-6">
@@ -100,7 +104,11 @@ function ListsPage() {
         </div>
       </header>
 
-      <main className="relative mx-auto max-w-5xl px-4 pt-4 pb-6 sm:px-6 sm:pt-6 sm:pb-10">
+      <main
+        className={`relative mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col sm:px-6 sm:pt-6 sm:pb-10 ${
+          isMapView ? '' : 'px-4 pt-4 pb-6'
+        }`}
+      >
         {!hasContent ? (
           <EmptyState mode={mode} />
         ) : (
@@ -133,7 +141,9 @@ function ListsPage() {
               onClick={() => setView(view === 'list' ? 'map' : 'list')}
               className="brutal-sm fixed z-20 flex h-12 items-center gap-2 rounded-full bg-primary px-4 text-primary-foreground"
               style={{
-                right: 'max(1rem, env(safe-area-inset-right))',
+                // On wide screens, aligns with the max-w-5xl content column's right edge (plus
+                // 1rem) instead of the raw viewport edge, matching where the button sits on mobile.
+                right: 'max(1rem, env(safe-area-inset-right), calc((100vw - 64rem) / 2 + 1rem))',
                 bottom: `calc(${BOTTOM_NAV_CLEARANCE} + 1rem)`,
               }}
             >
