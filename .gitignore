@@ -25,3 +25,6 @@ dist-ssr
 
 # Lavish design-review scratch artifacts
 .lavish/
+
+# TanStack Router dev-time cache
+.tanstack/
