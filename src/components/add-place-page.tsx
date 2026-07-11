@@ -207,6 +207,7 @@ export function AddPlacePage() {
         <PreviewStep
           result={previewResult}
           bookmark={bookmarks.find((b) => isSameSpot(b, previewResult)) ?? null}
+          alreadyRanked={allPlaces.some((p) => isSameSpot(p, previewResult))}
           bookmarkPending={bookmarkPending === previewResult.id}
           onToggleBookmark={(existingBookmarkId: string | null) =>
             toggleBookmark(previewResult, existingBookmarkId)
@@ -587,6 +588,7 @@ function ResultRowSkeleton() {
 function PreviewStep({
   result,
   bookmark,
+  alreadyRanked,
   bookmarkPending,
   onToggleBookmark,
   onReview,
@@ -594,19 +596,22 @@ function PreviewStep({
 }: {
   result: PlaceSearchResult
   bookmark: Bookmark | null
+  alreadyRanked: boolean
   bookmarkPending: boolean
   onToggleBookmark: (existingBookmarkId: string | null) => void
   onReview: () => void
   onChange: () => void
 }) {
-  const { details: osmDetails } = useLiveOsmDetails(realOsmId(result.id))
+  const { details: osmDetails, loading: osmLoading } = useLiveOsmDetails(realOsmId(result.id))
   return (
     <div className="min-h-svh pb-12">
       <PlaceDetailHeader onBack={onChange} backLabel="Back to search" />
       <UnreviewedPlaceDetail
         place={result}
         osmDetails={osmDetails}
+        osmLoading={osmLoading}
         bookmarked={!!bookmark}
+        alreadyRanked={alreadyRanked}
         bookmarkPending={bookmarkPending}
         onToggleBookmark={() => onToggleBookmark(bookmark?.id ?? null)}
         onReview={onReview}

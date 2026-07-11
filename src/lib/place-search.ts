@@ -223,8 +223,14 @@ export async function searchPlaces(
     }))
   }
 
-  placeSearchCache.set(cacheKey, places)
-  return places
+  // Photon occasionally returns the same OSM entity twice for a query (observed live for a
+  // real search) - dedupe by id so the list doesn't show a place twice and React doesn't warn
+  // about duplicate keys.
+  const seen = new Set<string>()
+  const deduped = places.filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
+
+  placeSearchCache.set(cacheKey, deduped)
+  return deduped
 }
 
 /**

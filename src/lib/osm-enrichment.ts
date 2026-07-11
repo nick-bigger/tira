@@ -106,3 +106,39 @@ export async function findOsmId(
   if (!best) return null
   return `osm:${best.osm_type[0]}${best.osm_id}`
 }
+
+export interface OsmSyncResult {
+  /** Set only when a match was newly found via findOsmId - undefined when the record already
+   *  had an osmId (nothing to change there) or when no match was found at all. */
+  osmId?: string
+  details: OsmDetails
+}
+
+/**
+ * Matches a place/bookmark to OpenStreetMap if it doesn't have an osmId yet (via findOsmId),
+ * then fetches its cuisine/website/phone/hours (via fetchOsmDetails). Used both by the
+ * automatic on-open sync (useCachedOsmSync) and the manual "Find/Refresh from OpenStreetMap"
+ * menu action, so a place gets linked the first time its detail page is opened rather than
+ * requiring that manual step. Propagates network/HTTP failures so callers can tell "nothing to
+ * find" (resolves normally) apart from "couldn't check right now" (throws).
+ */
+export async function syncOsmDetails(source: {
+  name: string
+  location: string | null
+  lat: number | null
+  lng: number | null
+  osmId: string | null
+}): Promise<OsmSyncResult> {
+  let osmId = source.osmId
+  if (!osmId) {
+    osmId = await findOsmId(
+      source.name,
+      source.location,
+      source.lat != null && source.lng != null ? { lat: source.lat, lng: source.lng } : null,
+    )
+  }
+  if (!osmId) return { details: EMPTY_OSM_DETAILS }
+
+  const details = await fetchOsmDetails(osmId)
+  return { osmId: source.osmId ? undefined : osmId, details: details ?? EMPTY_OSM_DETAILS }
+}

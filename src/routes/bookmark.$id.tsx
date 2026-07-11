@@ -20,9 +20,16 @@ function BookmarkDetailPage() {
 
   const bookmark = bookmarks.find((b) => b.id === id)
 
-  useCachedOsmSync(
-    { osmId: bookmark?.osmId ?? null, osmSyncedAt: bookmark?.osmSyncedAt ?? null },
-    (details) => updateBookmarkOsmEnrichment(id, details).then(refresh),
+  const { loading: osmLoading } = useCachedOsmSync(
+    {
+      name: bookmark?.name ?? '',
+      location: bookmark?.location ?? null,
+      lat: bookmark?.lat ?? null,
+      lng: bookmark?.lng ?? null,
+      osmId: bookmark?.osmId ?? null,
+      osmSyncedAt: bookmark?.osmSyncedAt ?? null,
+    },
+    (result) => updateBookmarkOsmEnrichment(id, result.details, result.osmId).then(refresh),
   )
 
   if (!bookmark) {
@@ -70,6 +77,7 @@ function BookmarkDetailPage() {
           phone: bookmark.phone,
           openingHours: bookmark.openingHours,
         }}
+        osmLoading={osmLoading}
         bookmarked
         bookmarkPending={removing}
         onToggleBookmark={handleRemove}

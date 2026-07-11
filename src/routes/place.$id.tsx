@@ -1,20 +1,34 @@
 import { DirectionsButton } from '@/components/directions-button'
 import { Field, FIELD_INPUT_CLASS } from '@/components/form-field'
-import { CalendarIcon, ChevronLeftIcon, MoreIcon, PencilIcon, TrashIcon } from '@/components/icons'
+import {
+  CalendarIcon,
+  CheckIcon,
+  ChevronLeftIcon,
+  MoreIcon,
+  PencilIcon,
+  TrashIcon,
+} from '@/components/icons'
 import { NotesEditor } from '@/components/notes-editor'
 import { PinIcon } from '@/components/pin-icon'
 import { PlaceDetailHeader } from '@/components/place-detail-header'
 import { PlaceHeroMap } from '@/components/place-hero-map'
-import { ContactBadges, CuisineText, HoursDisclosure } from '@/components/place-osm-details'
+import {
+  ContactBadges,
+  ContactBadgesSkeleton,
+  CuisineSkeleton,
+  CuisineText,
+  HoursDisclosure,
+  HoursSkeleton,
+} from '@/components/place-osm-details'
 import { RerankSheet } from '@/components/rerank-sheet'
-import { TIER_LABEL, TierIcon } from '@/components/tier-icon'
+import { TIER_LABEL } from '@/components/tier-icon'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { VisitedDateEditor } from '@/components/visited-date-editor'
 import { useAppData } from '@/lib/app-data'
-import { fetchOsmDetails, findOsmId } from '@/lib/osm-enrichment'
+import { syncOsmDetails } from '@/lib/osm-enrichment'
 import {
   deletePlace,
   updatePlaceDetails,
@@ -48,9 +62,16 @@ function PlaceDetailPage() {
 
   const place = [...byTier.liked, ...byTier.okay, ...byTier.nope].find((p) => p.id === id)
 
-  useCachedOsmSync(
-    { osmId: place?.osmId ?? null, osmSyncedAt: place?.osmSyncedAt ?? null },
-    (details) => updatePlaceOsmEnrichment(place!.id, details).then(refresh),
+  const { loading: osmLoading } = useCachedOsmSync(
+    {
+      name: place?.name ?? '',
+      location: place?.location ?? null,
+      lat: place?.lat ?? null,
+      lng: place?.lng ?? null,
+      osmId: place?.osmId ?? null,
+      osmSyncedAt: place?.osmSyncedAt ?? null,
+    },
+    (result) => updatePlaceOsmEnrichment(place!.id, result.details, result.osmId).then(refresh),
   )
 
   if (!place) {
@@ -85,19 +106,14 @@ function PlaceDetailPage() {
     setMenuOpen(false)
     setSyncingOsm(true)
     try {
-      const alreadyLinked = !!place!.osmId
-      let osmId = place!.osmId
-      if (!osmId) {
-        osmId = await findOsmId(
-          place!.name,
-          place!.location,
-          place!.lat != null && place!.lng != null ? { lat: place!.lat, lng: place!.lng } : null,
-        )
-      }
-      if (!osmId) return
-      const details = await fetchOsmDetails(osmId)
-      if (!details) return
-      await updatePlaceOsmEnrichment(place!.id, details, alreadyLinked ? undefined : osmId)
+      const result = await syncOsmDetails({
+        name: place!.name,
+        location: place!.location,
+        lat: place!.lat,
+        lng: place!.lng,
+        osmId: place!.osmId,
+      })
+      await updatePlaceOsmEnrichment(place!.id, result.details, result.osmId)
       await refresh()
     } finally {
       setSyncingOsm(false)
@@ -148,18 +164,6 @@ function PlaceDetailPage() {
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={6} className="brutal-sm w-48 border-0 bg-card p-0">
-        <button
-          type="button"
-          onClick={() => {
-            setMenuOpen(false)
-            setRerankOpen(true)
-          }}
-          className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left font-display text-sm font-bold"
-        >
-          <TierIcon tier={place.tier} className="h-3.5 w-3.5 shrink-0" />
-          Rank Again
-        </button>
-        <div className="h-[2px] bg-border" />
         <button
           type="button"
           disabled={syncingOsm}
@@ -216,18 +220,42 @@ function PlaceDetailPage() {
           </div>
 
           <div className="relative -mt-7 rounded-t-2xl border-t-[3px] border-border bg-card px-4 pt-5 sm:mt-0 sm:rounded-none sm:border-t-0 sm:bg-transparent sm:px-0 sm:pt-0">
-            <h1 className="font-display text-2xl font-bold text-balance">{place.name}</h1>
-            <CuisineText cuisine={place.cuisine} />
-            {place.location && (
-              <p className="mt-1 flex items-center gap-1 text-sm font-bold opacity-60">
-                <PinIcon className="h-3.5 w-3.5 shrink-0" />
-                {place.location}
-              </p>
-            )}
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h1 className="font-display text-2xl font-bold text-balance">{place.name}</h1>
+                {osmLoading ? <CuisineSkeleton /> : <CuisineText cuisine={place.cuisine} />}
+                {place.location && (
+                  <p className="mt-1 flex items-center gap-1 text-sm font-bold opacity-60">
+                    <PinIcon className="h-3.5 w-3.5 shrink-0" />
+                    {place.location}
+                  </p>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setRerankOpen(true)}
+                  className="brutal-xs flex items-center rounded-full bg-card px-3 py-1.5 text-[11px] font-bold text-foreground"
+                >
+                  Rank Again
+                </button>
+                <span
+                  aria-label="Reviewed"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-tier-liked bg-tier-liked/10 text-tier-liked"
+                >
+                  <CheckIcon className="h-3.5 w-3.5" />
+                </span>
+              </div>
+            </div>
 
-            <ContactBadges website={place.website} phone={place.phone} />
-
-            <DirectionsButton place={place} />
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {osmLoading ? (
+                <ContactBadgesSkeleton />
+              ) : (
+                <ContactBadges website={place.website} phone={place.phone} />
+              )}
+              <DirectionsButton place={place} />
+            </div>
 
             <p className="eyebrow mt-4 mb-1.5 text-[10px] opacity-60">Score</p>
             <ScoreGauge place={place} tierCount={byTier[place.tier].length} />
@@ -235,11 +263,18 @@ function PlaceDetailPage() {
             <div className="mt-4">
               <p className="eyebrow mb-1.5 text-[10px] opacity-60">About</p>
               <div className="brutal-sm flex flex-col gap-3 bg-muted p-4">
-                {place.openingHours && (
+                {osmLoading ? (
                   <>
-                    <HoursDisclosure openingHours={place.openingHours} />
+                    <HoursSkeleton />
                     <div className="h-px bg-border/15" />
                   </>
+                ) : (
+                  place.openingHours && (
+                    <>
+                      <HoursDisclosure openingHours={place.openingHours} />
+                      <div className="h-px bg-border/15" />
+                    </>
+                  )
                 )}
                 <button
                   type="button"
@@ -259,26 +294,25 @@ function PlaceDetailPage() {
                   </div>
                 </button>
                 <div className="h-px bg-border/15" />
-                {place.notes ? (
-                  <button
-                    type="button"
-                    onClick={() => setNotesOpen(true)}
-                    className="relative text-left hover:opacity-80"
-                  >
-                    <span className="absolute -top-2.5 left-0 font-serif text-4xl leading-none text-secondary">
-                      "
-                    </span>
-                    <p className="pt-1 text-sm leading-relaxed font-bold">{place.notes}</p>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setNotesOpen(true)}
-                    className="rounded-[var(--radius-md)] border-2 border-dashed border-border/40 bg-transparent p-3 text-left text-sm font-bold opacity-60 hover:border-border hover:opacity-90"
-                  >
-                    No notes yet - what did you think? 🍰
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setNotesOpen(true)}
+                  className="flex items-start gap-3 text-left hover:opacity-80"
+                >
+                  <span className="brutal-xs flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card">
+                    <PencilIcon className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="eyebrow text-[10px] opacity-60">Notes</p>
+                    {place.notes ? (
+                      <p className="text-sm leading-relaxed font-bold">{place.notes}</p>
+                    ) : (
+                      <p className="text-sm font-bold opacity-60">
+                        No notes yet - what did you think? 🍰
+                      </p>
+                    )}
+                  </div>
+                </button>
               </div>
             </div>
 

@@ -70,12 +70,24 @@ export async function deleteBookmark(id: string): Promise<void> {
   await db.execute({ sql: 'DELETE FROM bookmarks WHERE id = ?', args: [id] })
 }
 
-/** Caches OSM tags onto a bookmark - mirrors updatePlaceOsmEnrichment in places.ts, used by the
- *  lazy fetch-once-and-cache sync on the bookmark detail page. */
-export async function updateBookmarkOsmEnrichment(id: string, details: OsmDetails): Promise<void> {
+/** Caches OSM tags (and, when newly discovered, an osmId) onto a bookmark - mirrors
+ *  updatePlaceOsmEnrichment in places.ts, used by the auto-sync-on-open and the manual
+ *  "Find/Refresh from OpenStreetMap" action. */
+export async function updateBookmarkOsmEnrichment(
+  id: string,
+  details: OsmDetails,
+  osmId?: string,
+): Promise<void> {
   await ensureSchema()
-  await db.execute({
-    sql: "UPDATE bookmarks SET cuisine = ?, website = ?, phone = ?, opening_hours = ?, osm_synced_at = datetime('now') WHERE id = ?",
-    args: [details.cuisine, details.website, details.phone, details.openingHours, id],
-  })
+  if (osmId !== undefined) {
+    await db.execute({
+      sql: "UPDATE bookmarks SET osm_id = ?, cuisine = ?, website = ?, phone = ?, opening_hours = ?, osm_synced_at = datetime('now') WHERE id = ?",
+      args: [osmId, details.cuisine, details.website, details.phone, details.openingHours, id],
+    })
+  } else {
+    await db.execute({
+      sql: "UPDATE bookmarks SET cuisine = ?, website = ?, phone = ?, opening_hours = ?, osm_synced_at = datetime('now') WHERE id = ?",
+      args: [details.cuisine, details.website, details.phone, details.openingHours, id],
+    })
+  }
 }
